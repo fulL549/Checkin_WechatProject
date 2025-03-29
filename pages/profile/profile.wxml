@@ -1,0 +1,44 @@
+<view class="container">
+  <view class="header">
+    <text class="title">个人中心</text>
+  </view>
+
+  <scroll-view scroll-y class="content-scroll">
+    <view class="user-info">
+      <view class="avatar-section">
+        <image class="avatar" src="/images/avatar.png" mode="aspectFill"></image>
+        <text class="nickname">{{userInfo.name}}</text>
+      </view>
+
+      <view class="info-list">
+        <view class="info-item">
+          <text class="label">姓名</text>
+          <text class="value">{{userInfo.name}}</text>
+        </view>
+        <view class="info-item">
+          <text class="label">学号</text>
+          <text class="value">{{userInfo.studentId}}</text>
+        </view>
+        <view class="info-item">
+          <text class="label">性别</text>
+          <text class="value">{{userInfo.gender === 'male' ? '男' : '女'}}</text>
+        </view>
+        <view class="info-item">
+          <text class="label">总打卡次数</text>
+          <text class="value">{{userInfo.totalCheckins}}</text>
+        </view>
+        <view class="info-item">
+          <text class="label">本月打卡次数</text>
+          <text class="value">{{userInfo.monthlyCheckins}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="action-list">
+      <view class="action-item" bindtap="navigateToTask">
+        <text class="action-text">发布任务</text>
+        <text class="action-arrow">></text>
+      </view>
+    </view>
+  </scroll-view>
+</view> 

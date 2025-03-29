@@ -1,7 +1,22 @@
 <!--index.wxml-->
 <navigation-bar title="Weixin" back="{{false}}" color="black" background="#FFF"></navigation-bar>
-<scroll-view class="scrollarea" scroll-y type="list">
-  <view class="container">
-    Weixin
+<view class="page-container">
+  <view class="header">
+    <text class="title">任务列表</text>
   </view>
-</scroll-view>
+
+  <scroll-view class="scrollarea" scroll-y type="list">
+    <view class="task-list">
+      <view class="task-item" wx:for="{{tasks}}" wx:key="id" bindtap="handleTaskClick" data-task="{{item}}">
+        <view class="task-info">
+          <text class="task-title">{{item.title}}</text>
+          <text class="task-desc">{{item.description}}</text>
+          <text class="task-deadline">截止时间：{{item.deadline}}</text>
+        </view>
+        <view class="task-status {{item.checked ? 'checked' : ''}}">
+          {{item.checked ? '已打卡' : '未打卡'}}
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+</view>

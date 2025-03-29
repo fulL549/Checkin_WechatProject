@@ -1,0 +1,16 @@
+<view class="container">
+  <view class="logo-section">
+    <image class="logo" src="/images/logo.png" mode="aspectFit"></image>
+    <text class="app-name">打卡小程序</text>
+  </view>
+
+  <view class="login-section">
+    <view class="welcome-text">欢迎使用打卡小程序</view>
+    <view class="desc-text">请使用微信账号登录以使用完整功能</view>
+    
+    <button class="login-btn" bindtap="handleLogin">
+      <image class="wechat-icon" src="/images/wechat.png" mode="aspectFit"></image>
+      <text>微信一键登录</text>
+    </button>
+  </view>
+</view> 

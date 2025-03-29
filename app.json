@@ -1,10 +1,17 @@
 {
   "pages": [
-    "pages/index/index"
+    "pages/login/login",
+    "pages/index/index",
+    "pages/task/task",
+    "pages/checkin/checkin",
+    "pages/profile/profile",
+    "pages/ranking/ranking"
   ],
   "window": {
-    "navigationBarTextStyle": "black",
-    "navigationStyle": "custom"
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#fff",
+    "navigationBarTitleText": "打卡小程序",
+    "navigationBarTextStyle": "black"
   },
   "style": "v2",
   "renderer": "skyline",
@@ -20,5 +27,26 @@
   },
   "componentFramework": "glass-easel",
   "sitemapLocation": "sitemap.json",
-  "lazyCodeLoading": "requiredComponents"
+  "lazyCodeLoading": "requiredComponents",
+  "tabBar": {
+    "custom": false,
+    "color": "#999999",
+    "selectedColor": "#07c160",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "打卡任务"
+      },
+      {
+        "pagePath": "pages/ranking/ranking",
+        "text": "排行榜"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我"
+      }
+    ]
+  }
 }
