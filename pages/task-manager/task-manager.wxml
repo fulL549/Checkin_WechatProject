@@ -1,0 +1,51 @@
+<navigation-bar title="打卡任务管理" back="{{true}}" color="black" background="#FFF"></navigation-bar>
+<view class="manager-container">
+  <view class="header">
+    <text class="title">打卡任务管理</text>
+  </view>
+
+  <scroll-view scroll-y class="content-scroll" type="list" enable-pull-down-refresh="{{true}}" refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onPullDownRefresh">
+    <block wx:if="{{loading && !refreshing}}">
+      <view class="loading">
+        <text class="loading-text">加载中...</text>
+      </view>
+    </block>
+
+    <block wx:if="{{taskList.length === 0 && !loading}}">
+      <view class="empty-tip">
+        <text>暂无打卡任务</text>
+        <button class="add-btn" bindtap="onCreateTask">创建打卡任务</button>
+      </view>
+    </block>
+    
+    <block wx:if="{{taskList.length > 0}}">
+      <view class="task-list">
+        <view class="task-item" wx:for="{{taskList}}" wx:key="_id">
+          <view class="task-info" bindtap="onTaskDetail" data-id="{{item._id}}">
+            <view class="task-title">{{item.title}}</view>
+            <view class="task-meta">
+              <text class="deadline">截止日期: {{item.deadline}}</text>
+              <text class="participants">{{item.participants.length}}人参与</text>
+            </view>
+            <view class="task-description">{{item.description}}</view>
+          </view>
+          <view class="task-actions">
+            <view class="action-btn edit" bindtap="onEditTask" data-id="{{item._id}}">
+              编辑
+            </view>
+            <view class="action-btn delete" bindtap="onDeleteTask" data-id="{{item._id}}">
+              删除
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <view class="add-task">
+        <button class="add-btn" bindtap="onCreateTask">添加新任务</button>
+      </view>
+    </block>
+    
+    <!-- 添加底部安全区域 -->
+    <view class="safe-area-bottom"></view>
+  </scroll-view>
+</view> 

@@ -1,0 +1,58 @@
+<view class="container">
+  <navigation-bar title="个人设置" back="{{true}}" color="black" background="#FFF" bindback="onBackTap"></navigation-bar>
+  
+  <scroll-view class="content-scroll" scroll-y type="list">
+    <view class="settings-form">
+      <view class="form-group avatar-group">
+        <text class="form-label">头像</text>
+        <view class="avatar-picker" bindtap="onChooseAvatar">
+          <image class="avatar" src="{{userInfo.avatarUrl || '/images/default-avatar.png'}}"></image>
+          <text class="change-text">点击更换</text>
+        </view>
+      </view>
+      
+      <view class="form-group">
+        <text class="form-label">姓名</text>
+        <input class="form-input" type="text" placeholder="请输入姓名" value="{{userInfo.nickName}}" bindinput="onNicknameInput"/>
+      </view>
+      
+      <view class="form-group">
+        <text class="form-label">学号</text>
+        <input class="form-input" type="text" placeholder="请输入学号" value="{{userInfo.studentId}}" bindinput="onStudentIdInput"/>
+      </view>
+      
+      <view class="form-group">
+        <text class="form-label">性别</text>
+        <radio-group class="radio-group" bindchange="onGenderChange">
+          <label class="radio-label">
+            <radio value="male" checked="{{userInfo.gender === 'male'}}"/>
+            <text>男</text>
+          </label>
+          <label class="radio-label">
+            <radio value="female" checked="{{userInfo.gender === 'female'}}"/>
+            <text>女</text>
+          </label>
+        </radio-group>
+      </view>
+      
+      <view class="form-group">
+        <text class="form-label">生日</text>
+        <picker mode="date" value="{{userInfo.birthday || '2000-01-01'}}" start="1970-01-01" end="2010-12-31" bindchange="onBirthdayChange">
+          <view class="picker-view">{{userInfo.birthday || '请选择日期'}}</view>
+        </picker>
+      </view>
+      
+      <view class="form-group">
+        <text class="form-label">手机号</text>
+        <input class="form-input" type="number" placeholder="请输入手机号" value="{{userInfo.phone}}" bindinput="onPhoneInput"/>
+      </view>
+    </view>
+    
+    <view class="button-group">
+      <button class="save-button" bindtap="saveSettings" loading="{{loading}}">保存设置</button>
+    </view>
+    
+    <!-- 底部安全区域 -->
+    <view class="safe-area-bottom"></view>
+  </scroll-view>
+</view> 

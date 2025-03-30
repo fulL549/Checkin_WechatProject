@@ -1,0 +1,113 @@
+<navigation-bar title="任务详情" back="{{true}}" color="black" background="#FFF"></navigation-bar>
+<view class="detail-container">
+  <view class="header">
+    <text class="title">任务详情</text>
+  </view>
+
+  <!-- 调试信息显示区域 -->
+  <view class="debug-info" wx:if="{{debugInfo}}">
+    <text class="debug-text">{{debugInfo}}</text>
+  </view>
+
+  <block wx:if="{{loading}}">
+    <view class="loading-state">
+      <view class="loading-icon"></view>
+      <text class="loading-text">加载中...</text>
+    </view>
+  </block>
+
+  <scroll-view wx:else class="content-scroll" scroll-y type="list">
+    <view class="task-card">
+      <view class="task-header">
+        <text class="task-title">{{task.title}}</text>
+        <view class="task-status {{isExpired ? 'expired' : (hasCheckedIn ? 'checked' : (hasJoined ? 'joined' : ''))}}">
+          {{isExpired ? '已截止' : (hasCheckedIn ? '已打卡' : (hasJoined ? '已参与' : '未参与'))}}
+        </view>
+      </view>
+
+      <!-- 任务详情 -->
+      <view class="detail-section">
+        <view class="detail-item">
+          <text class="label">任务描述</text>
+          <text class="value description">{{task.description}}</text>
+        </view>
+
+        <view class="detail-item">
+          <text class="label">截止时间</text>
+          <text class="value">{{task.deadline}}</text>
+        </view>
+
+        <view class="detail-item" wx:if="{{task.requirements}}">
+          <text class="label">打卡要求</text>
+          <text class="value">{{task.requirements}}</text>
+        </view>
+
+        <view class="detail-item" wx:if="{{task.remark}}">
+          <text class="label">备注</text>
+          <text class="value">{{task.remark}}</text>
+        </view>
+
+        <view class="detail-item">
+          <text class="label">发布者</text>
+          <text class="value">{{task.creatorName || '未知'}}</text>
+        </view>
+
+        <view class="detail-item">
+          <text class="label">发布时间</text>
+          <text class="value">{{task.createTimeFormatted || '未知'}}</text>
+        </view>
+
+        <view class="detail-item">
+          <text class="label">参与人数</text>
+          <text class="value">{{task.participants.length || 0}}人</text>
+        </view>
+      </view>
+
+      <!-- 操作按钮 -->
+      <view class="action-section">
+        <block wx:if="{{!hasJoined && !isExpired}}">
+          <button class="action-btn join-btn" bindtap="joinTask">参与任务</button>
+        </block>
+        <block wx:if="{{hasJoined && !isExpired}}">
+          <button class="action-btn {{hasCheckedIn ? 'view-btn' : 'checkin-btn'}}" bindtap="navigateToCheckin">
+            {{hasCheckedIn ? '查看打卡' : '去打卡'}}
+          </button>
+        </block>
+      </view>
+    </view>
+
+    <!-- 打卡记录 可以在这里展示该任务的打卡记录 -->
+    <view class="record-section" wx:if="{{hasJoined || isCreator}}">
+      <view class="section-title">打卡记录</view>
+      <!-- 显示当天打卡记录 -->
+      <view wx:if="{{hasCheckedIn && checkinRecord}}" class="checkin-record">
+        <view class="record-date">{{checkinRecord.date}} 打卡</view>
+        <view class="record-content">
+          <text class="content-label">打卡内容:</text>
+          <text class="content-text">{{checkinRecord.content}}</text>
+        </view>
+        <view class="record-content" wx:if="{{checkinRecord.training}}">
+          <text class="content-label">训练内容:</text>
+          <text class="content-text">{{checkinRecord.training}}</text>
+        </view>
+      </view>
+      <view wx:else class="empty-record">
+        <text>今日暂无打卡记录</text>
+      </view>
+    </view>
+
+    <!-- 任务参与者 -->
+    <view class="participants-section" wx:if="{{task.participants.length > 0}}">
+      <view class="section-title">参与者 ({{task.participants.length}})</view>
+      <!-- TODO: 这里可以添加参与者列表 -->
+      <view class="participants-list">
+        <view class="participant-avatar" wx:for="{{task.participants}}" wx:key="index">
+          <text>{{index + 1}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部安全区域 -->
+    <view class="safe-area-bottom"></view>
+  </scroll-view>
+</view> 
