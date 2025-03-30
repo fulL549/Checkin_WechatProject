@@ -55,23 +55,23 @@ Component({
    * 组件的初始数据
    */
   data: {
-    displayStyle: ''
+    displayStyle: '',
+    statusBarHeight: 0,
+    navBarHeight: 48
   },
   lifetimes: {
     attached() {
-      const rect = wx.getMenuButtonBoundingClientRect()
-      wx.getSystemInfo({
-        success: (res) => {
-          const isAndroid = res.platform === 'android'
-          const isDevtools = res.platform === 'devtools'
-          this.setData({
-            ios: !isAndroid,
-            innerPaddingRight: `padding-right: ${res.windowWidth - rect.left}px`,
-            leftWidth: `width: ${res.windowWidth - rect.left }px`,
-            safeAreaTop: isDevtools || isAndroid ? `height: calc(var(--height) + ${res.safeArea.top}px); padding-top: ${res.safeArea.top}px` : ``
-          })
-        }
-      })
+      try {
+        const appBaseInfo = wx.getAppBaseInfo()
+        const windowInfo = wx.getWindowInfo()
+        
+        this.setData({
+          statusBarHeight: appBaseInfo.statusBarHeight || 20,
+          navBarHeight: 48
+        })
+      } catch (err) {
+        console.error('获取系统信息失败：', err)
+      }
     },
   },
   /**
@@ -95,9 +95,16 @@ Component({
     back() {
       const data = this.data
       if (data.delta) {
-        wx.navigateBack({
-          delta: data.delta
-        })
+        const currentPages = getCurrentPages();
+        const currentPage = currentPages[currentPages.length - 1];
+        // 如果页面有onBackTap方法，则调用
+        if (currentPage && typeof currentPage.onBackTap === 'function') {
+          currentPage.onBackTap();
+        } else {
+          wx.navigateBack({
+            delta: data.delta
+          });
+        }
       }
       this.triggerEvent('back', { delta: data.delta }, {})
     }

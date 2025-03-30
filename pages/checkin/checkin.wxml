@@ -1,67 +1,65 @@
-<view class="container">
+<navigation-bar title="{{isView ? '打卡详情' : '提交打卡'}}" back="{{true}}" color="black" background="#FFF"></navigation-bar>
+<view class="checkin-container">
   <view class="header">
-    <view class="task-info">
-      <text class="task-title">{{taskInfo.title}}</text>
-      <text class="task-desc">{{taskInfo.description}}</text>
-      <text class="task-deadline">截止时间：{{taskInfo.deadline}}</text>
-    </view>
-    <view class="checkin-status {{hasCheckedIn ? 'checked' : ''}}">
-      <text class="status-text">{{hasCheckedIn ? '今日已打卡' : '今日未打卡'}}</text>
-      <text class="time" wx:if="{{hasCheckedIn}}">{{checkinTime}}</text>
-    </view>
+    <text class="title">{{isView ? '打卡详情' : '提交打卡'}}</text>
   </view>
 
-  <scroll-view scroll-y class="form-scroll">
+  <scroll-view scroll-y class="form-scroll" type="list">
+    <view class="task-card" wx:if="{{task}}">
+      <view class="task-title">{{task.title}}</view>
+      <view class="task-desc">{{task.description}}</view>
+      <view class="task-deadline">截止日期：{{task.deadline}}</view>
+    </view>
+
     <view class="form">
       <view class="form-item">
-        <text class="label">姓名</text>
-        <input class="input" placeholder="请输入姓名" bindinput="onNameInput" />
-      </view>
-      
-      <view class="form-item">
-        <text class="label">手机号</text>
-        <input class="input" type="number" placeholder="请输入手机号" bindinput="onPhoneInput" />
-      </view>
-
-      <view class="form-item">
-        <text class="label">学号</text>
-        <input class="input" placeholder="请输入学号" bindinput="onStudentIdInput" />
+        <text class="label">打卡日期</text>
+        <view class="date-picker">
+          <picker mode="date" value="{{form.date}}" start="2020-01-01" end="2030-12-31" bindchange="onDateChange" disabled="{{isView}}">
+            <view class="picker-text">{{form.date}}</view>
+          </picker>
+        </view>
       </view>
 
       <view class="form-item">
-        <text class="label">性别</text>
-        <radio-group class="radio-group" bindchange="onGenderChange">
-          <label class="radio-label">
-            <radio value="male" checked="{{gender === 'male'}}" />男
-          </label>
-          <label class="radio-label">
-            <radio value="female" checked="{{gender === 'female'}}" />女
-          </label>
-        </radio-group>
+        <text class="label">打卡内容<text class="required">*</text></text>
+        <textarea 
+          class="textarea" 
+          placeholder="请输入今日打卡内容" 
+          value="{{form.content}}"
+          bindinput="onContentInput"
+          disabled="{{isView}}"
+        ></textarea>
       </view>
 
       <view class="form-item">
-        <text class="label">地点</text>
-        <input class="input" placeholder="请输入打卡地点" bindinput="onLocationInput" />
+        <text class="label">训练内容<text class="required">*</text></text>
+        <textarea 
+          class="textarea" 
+          placeholder="请输入今日训练内容" 
+          value="{{form.training}}"
+          bindinput="onTrainingInput"
+          disabled="{{isView}}"
+        ></textarea>
       </view>
 
       <view class="form-item">
-        <text class="label">内容</text>
-        <textarea class="textarea" placeholder="请输入打卡内容" bindinput="onContentInput" />
-      </view>
-      
-      <view class="form-item">
-        <text class="label">备注</text>
-        <textarea class="textarea" placeholder="请输入备注信息" bindinput="onRemarkInput" />
-      </view>
-
-      <view class="form-item">
-        <button class="checkin-btn {{hasCheckedIn ? 'checked' : ''}}" 
-                bindtap="handleCheckin" 
-                disabled="{{hasCheckedIn}}">
-          {{hasCheckedIn ? '已打卡' : '完成打卡'}}
-        </button>
+        <text class="label">备注<text class="required">*</text></text>
+        <textarea 
+          class="textarea" 
+          placeholder="请输入备注信息" 
+          value="{{form.remark}}"
+          bindinput="onRemarkInput"
+          disabled="{{isView}}"
+        ></textarea>
       </view>
     </view>
+
+    <view class="submit-section" wx:if="{{!isView}}">
+      <button class="submit-btn" bindtap="handleSubmit" disabled="{{loading}}">提交打卡</button>
+    </view>
+    
+    <!-- 底部安全区域 -->
+    <view class="safe-area-bottom"></view>
   </scroll-view>
 </view> 

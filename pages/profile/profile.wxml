@@ -1,44 +1,55 @@
-<view class="container">
-  <view class="header">
-    <text class="title">个人中心</text>
-  </view>
-
-  <scroll-view scroll-y class="content-scroll">
+<navigation-bar title="个人中心" back="{{false}}" color="black" background="#FFF"></navigation-bar>
+<view class="profile-container">
+  <scroll-view scroll-y class="content-scroll" type="list" enable-pull-down-refresh="{{true}}" refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onPullDownRefresh">
     <view class="user-info">
       <view class="avatar-section">
-        <image class="avatar" src="/images/avatar.png" mode="aspectFill"></image>
-        <text class="nickname">{{userInfo.name}}</text>
+        <image class="avatar" src="{{userInfo.avatarUrl || '/images/default-avatar.png'}}"></image>
+        <text class="nickname">{{userInfo.nickName || '微信用户'}}</text>
+        <view wx:if="{{!userInfo._openid}}" class="login-btn" bindtap="onLoginTap">点击模拟登录</view>
       </view>
-
-      <view class="info-list">
+      
+      <view class="info-section">
         <view class="info-item">
-          <text class="label">姓名</text>
-          <text class="value">{{userInfo.name}}</text>
+          <text class="label">用户ID</text>
+          <text class="value">{{userInfo._openid || '未登录'}}</text>
         </view>
         <view class="info-item">
-          <text class="label">学号</text>
-          <text class="value">{{userInfo.studentId}}</text>
+          <text class="label">累计打卡</text>
+          <text class="value">{{stats.totalCheckins || 0}}次</text>
         </view>
         <view class="info-item">
-          <text class="label">性别</text>
-          <text class="value">{{userInfo.gender === 'male' ? '男' : '女'}}</text>
-        </view>
-        <view class="info-item">
-          <text class="label">总打卡次数</text>
-          <text class="value">{{userInfo.totalCheckins}}</text>
-        </view>
-        <view class="info-item">
-          <text class="label">本月打卡次数</text>
-          <text class="value">{{userInfo.monthlyCheckins}}</text>
+          <text class="label">排名</text>
+          <text class="value">{{stats.rank || '未上榜'}}</text>
         </view>
       </view>
     </view>
 
     <view class="action-list">
-      <view class="action-item" bindtap="navigateToTask">
-        <text class="action-text">发布任务</text>
+      <view class="action-item" bindtap="onHistoryTap">
+        <text class="action-text">打卡历史</text>
+        <text class="action-arrow">></text>
+      </view>
+      <view class="action-item" bindtap="onCaptainModeTap">
+        <text class="action-text">队长模式</text>
+        <text wx:if="{{isCaptain}}" class="captain-badge">已开启</text>
+        <text class="action-arrow">></text>
+      </view>
+      <view class="action-item" bindtap="onSettingsTap">
+        <text class="action-text">设置</text>
+        <text class="action-arrow">></text>
+      </view>
+      <view class="action-item" bindtap="onAboutTap">
+        <text class="action-text">关于</text>
+        <text class="action-arrow">></text>
+      </view>
+      
+      <view class="action-item logout" bindtap="onLogoutTap">
+        <text class="action-text logout-text">退出登录</text>
         <text class="action-arrow">></text>
       </view>
     </view>
+    
+    <!-- 添加底部安全区域 -->
+    <view class="safe-area-bottom"></view>
   </scroll-view>
 </view> 

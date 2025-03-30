@@ -14,6 +14,7 @@
               hover-stay-time="100"
               aria-role="button"
               aria-label="返回"
+              style="display:flex;align-items:center;justify-content:center;"
             >
               <view class="weui-navigation-bar__button weui-navigation-bar__btn_goback"></view>
             </view>

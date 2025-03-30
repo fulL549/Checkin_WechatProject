@@ -1,20 +1,22 @@
 page {
-  background-color: #f5f5f5;
-}
-
-.container {
-  min-height: 100vh;
-  background-color: #f5f5f5;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  padding-bottom: 100rpx;
+  background: #f5f5f5;
+}
+
+.profile-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .header {
-  background-color: #fff;
-  padding: 30rpx;
-  text-align: center;
-  margin-bottom: 20rpx;
+  padding: 10rpx 30rpx;
+  margin-top: 44rpx;
 }
 
 .title {
@@ -25,23 +27,30 @@ page {
 
 .content-scroll {
   flex: 1;
-  height: calc(100vh - 200rpx);
+  padding: 0 30rpx;
+  height: calc(100vh - 90rpx);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .user-info {
   background-color: #fff;
+  border-radius: 16rpx;
   padding: 30rpx;
-  margin: 0 20rpx;
-  border-radius: 12rpx;
-  margin-bottom: 20rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .avatar-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 30rpx 0;
-  border-bottom: 1rpx solid #eee;
+  padding-bottom: 30rpx;
+  border-bottom: 1rpx solid #f0f0f0;
   margin-bottom: 30rpx;
 }
 
@@ -49,7 +58,8 @@ page {
   width: 120rpx;
   height: 120rpx;
   border-radius: 60rpx;
-  margin-bottom: 20rpx;
+  margin-bottom: 16rpx;
+  background-color: #f0f0f0;
 }
 
 .nickname {
@@ -58,44 +68,50 @@ page {
   color: #333;
 }
 
-.info-list {
+.info-section {
   padding: 0 20rpx;
 }
 
 .info-item {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 20rpx 0;
-  border-bottom: 1rpx solid #eee;
+  margin-bottom: 20rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+  padding-bottom: 20rpx;
 }
 
 .info-item:last-child {
+  margin-bottom: 0;
   border-bottom: none;
 }
 
 .label {
   font-size: 28rpx;
-  color: #666;
+  color: #999;
 }
 
 .value {
   font-size: 28rpx;
   color: #333;
+  font-weight: 500;
 }
 
 .action-list {
   background-color: #fff;
-  margin: 0 20rpx;
-  border-radius: 12rpx;
+  border-radius: 16rpx;
+  padding: 0 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
+  margin-bottom: 60rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .action-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 30rpx;
-  border-bottom: 1rpx solid #eee;
+  padding: 30rpx 0;
+  border-bottom: 1rpx solid #f5f5f5;
 }
 
 .action-item:last-child {
@@ -109,5 +125,47 @@ page {
 
 .action-arrow {
   font-size: 28rpx;
-  color: #999;
+  color: #ccc;
+}
+
+/* 点击状态 */
+.action-item:active {
+  background-color: #f9f9f9;
+}
+
+.login-btn {
+  margin-top: 20rpx;
+  background-color: #1296db;
+  color: white;
+  padding: 10rpx 30rpx;
+  border-radius: 30rpx;
+  font-size: 28rpx;
+}
+
+.login-btn:active {
+  opacity: 0.8;
+}
+
+.logout {
+  margin-top: 30rpx;
+  border-top: 1rpx solid #f0f0f0;
+  padding-top: 30rpx;
+}
+
+.logout-text {
+  color: #ff4d4f;
+}
+
+.safe-area-bottom {
+  height: 50rpx;
+  width: 100%;
+}
+
+.captain-badge {
+  background-color: #07c160;
+  color: white;
+  border-radius: 30rpx;
+  padding: 4rpx 12rpx;
+  font-size: 22rpx;
+  margin-right: 10rpx;
 } 

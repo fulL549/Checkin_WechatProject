@@ -1,125 +1,375 @@
+const cloud = require('../../utils/cloud')
+
 Page({
   data: {
-    currentDate: '',
-    hasCheckedIn: false,
-    checkinTime: '',
-    name: '',
-    phone: '',
-    remark: '',
-    taskInfo: {
-      title: '',
-      description: '',
-      deadline: ''
-    },
-    isViewMode: false,
+    taskId: '',
+    task: null,
     form: {
-      name: '',
-      phone: '',
-      studentId: '',
-      gender: 'male',
-      location: '',
       content: '',
-      remark: ''
+      training: '',
+      remark: '',
+      date: new Date().toISOString().split('T')[0]
+    },
+    isView: false,
+    userInfo: null,
+    loading: false
+  },
+
+  // 处理导航栏返回按钮点击
+  onBackTap: function() {
+    wx.navigateBack({
+      delta: 1
+    })
+  },
+
+  onLoad: function(options) {
+    console.log('打卡页面加载，参数:', options)
+    
+    if (!cloud || !cloud.task || !cloud.checkin) {
+      console.error('cloud module not properly loaded')
+      wx.showToast({
+        title: '加载失败，请重试',
+        icon: 'none'
+      })
+      return
+    }
+    
+    const taskId = options.id || ''
+    const recordId = options.recordId || ''
+    const isView = options.mode === 'view' || options.view === '1'
+    
+    this.setData({
+      taskId,
+      recordId,
+      isView
+    })
+    
+    // 设置当前日期
+    this.setCurrentDate()
+    
+    // 加载用户信息
+    this.loadUserInfo()
+    
+    // 如果是从历史记录直接进入，先加载打卡记录
+    if (recordId) {
+      this.loadCheckinRecordById(recordId)
+    } 
+    // 如果有任务ID，加载任务详情
+    else if (taskId) {
+      this.loadTaskDetail(taskId)
     }
   },
 
-  onLoad(options) {
-    this.setCurrentDate();
-    // 获取传递过来的任务ID和打卡状态
-    const taskId = options.taskId;
-    const isChecked = options.isChecked === 'true';
+  // 设置当前日期
+  setCurrentDate: function() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const today = `${year}-${month}-${day}`
     
-    // 这里应该根据taskId从服务器获取任务详情
-    // 暂时使用模拟数据
     this.setData({
-      taskInfo: {
-        title: '示例任务',
-        description: '这是一个示例任务描述',
-        deadline: '2024-03-30'
-      },
-      hasCheckedIn: isChecked,
-      checkinTime: isChecked ? '09:30' : ''
-    });
+      'form.date': today
+    })
   },
 
-  setCurrentDate() {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    this.setData({
-      currentDate: `${year}-${month}-${day}`
-    });
+  // 加载用户信息
+  loadUserInfo: function() {
+    const app = getApp()
+    let userInfo = app.globalData.userInfo
+    
+    if (!userInfo) {
+      userInfo = wx.getStorageSync('userInfo') || null
+      if (userInfo) {
+        app.globalData.userInfo = userInfo
+      }
+    }
+    
+    this.setData({ userInfo })
+    
+    // 检查登录状态
+    if (!userInfo || !userInfo._openid) {
+      wx.showModal({
+        title: '提示',
+        content: '请先登录后再打卡',
+        showCancel: false,
+        success: () => {
+          wx.switchTab({
+            url: '/pages/profile/profile'
+          })
+        }
+      })
+    }
   },
 
-  onNameInput(e) {
-    this.setData({
-      'form.name': e.detail.value
-    });
+  // 加载任务详情
+  loadTaskDetail: function(taskId) {
+    wx.showLoading({
+      title: '加载中...'
+    })
+    
+    cloud.task.getTaskDetail(taskId)
+      .then(task => {
+        console.log('获取到任务详情:', task)
+        
+        this.setData({ task })
+        
+        // 如果是查看模式，加载打卡记录
+        if (this.data.isView) {
+          this.loadCheckinRecord(taskId)
+        }
+        
+        wx.hideLoading()
+      })
+      .catch(err => {
+        console.error('获取任务详情失败:', err)
+        
+        wx.hideLoading()
+        wx.showToast({
+          title: '加载任务失败，请重试',
+          icon: 'none'
+        })
+      })
   },
 
-  onPhoneInput(e) {
-    this.setData({
-      'form.phone': e.detail.value
-    });
+  // 加载打卡记录（查看模式）
+  loadCheckinRecord: function(taskId) {
+    if (!this.data.isView) return
+
+    const recordId = this.data.recordId
+
+    if (recordId) {
+      // 如果有指定记录ID，直接加载该记录
+      wx.showLoading({
+        title: '加载记录中...'
+      })
+
+      // 调用云函数获取记录详情
+      cloud.checkin.getCheckinDetail(recordId)
+        .then(data => {
+          wx.hideLoading()
+          
+          if (data) {
+            // 设置表单数据
+            this.setData({
+              form: {
+                content: data.content || '',
+                training: data.training || '',
+                remark: data.remark || '',
+                date: data.date || this.data.form.date
+              }
+            })
+          } else {
+            wx.showToast({
+              title: '加载记录失败',
+              icon: 'none'
+            })
+          }
+        })
+        .catch(err => {
+          console.error('获取打卡记录失败:', err)
+          wx.hideLoading()
+          wx.showToast({
+            title: '加载记录失败',
+            icon: 'none'
+          })
+        })
+    } else {
+      // 如果没有指定记录ID，检查今天是否已经打卡
+      const today = new Date().toISOString().split('T')[0]
+      
+      wx.cloud.callFunction({
+        name: 'checkin',
+        data: {
+          type: 'checkStatus',
+          taskId: taskId,
+          date: today
+        }
+      })
+      .then(res => {
+        if (res.result && res.result.code === 0 && res.result.data.hasCheckedIn && res.result.data.record) {
+          // 设置表单数据
+          this.setData({
+            form: {
+              content: res.result.data.record.content || '',
+              training: res.result.data.record.training || '',
+              remark: res.result.data.record.remark || '',
+              date: res.result.data.record.date || this.data.form.date
+            }
+          })
+        } else {
+          // 没有找到记录，使用默认值
+          this.setData({
+            form: {
+              content: '今天暂无打卡内容',
+              training: '无训练记录',
+              remark: '无备注信息',
+              date: today
+            }
+          })
+        }
+      })
+      .catch(err => {
+        console.error('检查打卡状态失败:', err)
+        // 出错时使用默认值
+        this.setData({
+          form: {
+            content: '获取失败，请重试',
+            training: '',
+            remark: '',
+            date: today
+          }
+        })
+      })
+    }
   },
 
-  onStudentIdInput(e) {
-    this.setData({
-      'form.studentId': e.detail.value
-    });
+  // 通过记录ID加载打卡记录
+  loadCheckinRecordById: function(recordId) {
+    wx.showLoading({
+      title: '加载记录中...'
+    })
+
+    // 调用云函数获取记录详情
+    cloud.checkin.getCheckinDetail(recordId)
+      .then(data => {
+        console.log('获取到打卡记录:', data)
+        
+        // 设置表单数据
+        this.setData({
+          form: {
+            content: data.content || '',
+            training: data.training || '',
+            remark: data.remark || '',
+            date: data.date || this.data.form.date
+          },
+          taskId: data.taskId || ''
+        })
+        
+        // 如果记录包含任务ID，加载任务详情
+        if (data.taskId) {
+          this.loadTaskDetail(data.taskId)
+        } else {
+          wx.hideLoading()
+        }
+      })
+      .catch(err => {
+        console.error('获取打卡记录失败:', err)
+        wx.hideLoading()
+        wx.showToast({
+          title: '加载记录失败',
+          icon: 'none'
+        })
+      })
   },
 
-  onGenderChange(e) {
+  // 日期选择变化
+  onDateChange: function(e) {
     this.setData({
-      'form.gender': e.detail.value
-    });
+      'form.date': e.detail.value
+    })
   },
 
-  onLocationInput(e) {
-    this.setData({
-      'form.location': e.detail.value
-    });
-  },
-
-  onContentInput(e) {
+  // 内容输入变化
+  onContentInput: function(e) {
     this.setData({
       'form.content': e.detail.value
-    });
+    })
   },
 
-  onRemarkInput(e) {
+  // 训练内容输入变化
+  onTrainingInput: function(e) {
+    this.setData({
+      'form.training': e.detail.value
+    })
+  },
+
+  // 备注输入变化
+  onRemarkInput: function(e) {
     this.setData({
       'form.remark': e.detail.value
-    });
+    })
   },
 
-  handleCheckin() {
-    // 这里添加表单验证逻辑
-    if (!this.data.form.name || !this.data.form.phone || !this.data.form.studentId) {
+  // 提交打卡
+  handleSubmit: function() {
+    if (this.data.loading) return
+    
+    // 检查用户是否已登录
+    if (!this.data.userInfo || !this.data.userInfo._openid) {
       wx.showToast({
-        title: '请填写必要信息',
+        title: '请先登录',
         icon: 'none'
-      });
-      return;
+      })
+      return
+    }
+    
+    // 表单验证
+    if (!this.data.form.content.trim()) {
+      wx.showToast({
+        title: '请填写打卡内容',
+        icon: 'none'
+      })
+      return
     }
 
-    // 这里添加提交打卡信息的逻辑
-    wx.showLoading({
-      title: '提交中...',
-    });
-
-    // 模拟提交
-    setTimeout(() => {
-      wx.hideLoading();
-      this.setData({
-        hasCheckedIn: true,
-        checkinTime: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-      });
+    if (!this.data.form.training.trim()) {
       wx.showToast({
-        title: '打卡成功',
-        icon: 'success'
-      });
-    }, 1500);
+        title: '请填写训练内容',
+        icon: 'none'
+      })
+      return
+    }
+
+    if (!this.data.form.remark.trim()) {
+      wx.showToast({
+        title: '请填写备注信息',
+        icon: 'none'
+      })
+      return
+    }
+    
+    this.setData({ loading: true })
+    wx.showLoading({ title: '提交中...' })
+    
+    // 准备打卡数据
+    const checkinData = {
+      taskId: this.data.taskId,
+      content: this.data.form.content,
+      training: this.data.form.training,
+      remark: this.data.form.remark,
+      date: this.data.form.date,
+      userInfo: {
+        openId: this.data.userInfo._openid,
+        nickName: this.data.userInfo.nickName,
+        avatarUrl: this.data.userInfo.avatarUrl
+      }
+    }
+    
+    cloud.checkin.submitCheckin(checkinData)
+      .then(() => {
+        wx.hideLoading()
+        this.setData({ loading: false })
+        
+        wx.showToast({
+          title: '打卡成功',
+          icon: 'success'
+        })
+        
+        // 延迟返回
+        setTimeout(() => {
+          wx.navigateBack()
+        }, 1500)
+      })
+      .catch(err => {
+        console.error('打卡失败:', err)
+        wx.hideLoading()
+        this.setData({ loading: false })
+        
+        wx.showToast({
+          title: err.message || '打卡失败',
+          icon: 'none'
+        })
+      })
   }
-}); 
+}) 

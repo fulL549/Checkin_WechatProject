@@ -1,42 +1,49 @@
-<view class="container">
+<navigation-bar title="{{isEdit ? '编辑任务' : '发布任务'}}" back="{{true}}" color="black" background="#FFF"></navigation-bar>
+<view class="task-container">
   <view class="header">
-    <text class="title">发布任务</text>
+    <text class="title">{{isEdit ? '编辑任务' : '发布任务'}}</text>
   </view>
   
-  <scroll-view scroll-y class="form-scroll">
+  <scroll-view scroll-y class="form-scroll" type="list">
     <view class="form">
       <view class="form-item">
-        <text class="label">任务标题</text>
-        <input class="input" placeholder="请输入任务标题" bindinput="onTitleInput" />
+        <text class="label">任务标题 <text class="required">*</text></text>
+        <input class="input" placeholder="请输入任务标题" value="{{form.title}}" bindinput="onTitleInput" />
       </view>
       
       <view class="form-item">
-        <text class="label">任务描述</text>
-        <textarea class="textarea" placeholder="请输入任务描述" bindinput="onDescriptionInput" />
+        <text class="label">任务描述 <text class="required">*</text></text>
+        <textarea class="textarea" placeholder="请输入任务描述" value="{{form.description}}" bindinput="onDescriptionInput" />
       </view>
       
       <view class="form-item">
-        <text class="label">截止时间</text>
-        <picker mode="date" value="{{deadline}}" start="{{startDate}}" end="{{endDate}}" bindchange="onDeadlineChange">
-          <view class="picker">
-            {{deadline || '请选择截止时间'}}
+        <text class="label">截止时间 <text class="required">*</text></text>
+        <picker mode="date" value="{{form.deadline}}" start="{{startDate}}" end="{{endDate}}" bindchange="onDeadlineChange">
+          <view class="picker {{form.deadline ? '' : 'placeholder'}}">
+            {{form.deadline || '请选择截止时间'}}
           </view>
         </picker>
       </view>
       
       <view class="form-item">
         <text class="label">打卡要求</text>
-        <textarea class="textarea" placeholder="请输入打卡要求" bindinput="onRequirementInput" />
+        <textarea class="textarea" placeholder="请输入打卡要求" value="{{form.requirements}}" bindinput="onRequirementInput" />
       </view>
       
       <view class="form-item">
         <text class="label">备注</text>
-        <textarea class="textarea" placeholder="请输入备注信息" bindinput="onRemarkInput" />
+        <textarea class="textarea" placeholder="请输入备注信息" value="{{form.remark}}" bindinput="onRemarkInput" />
       </view>
-      
+
+      <!-- 提交按钮 -->
       <view class="form-item">
-        <button class="submit-btn" bindtap="handleSubmit">发布任务</button>
+        <button class="submit-btn" bindtap="handleSubmit" disabled="{{loading}}">
+          {{isEdit ? '保存修改' : '发布任务'}}
+        </button>
       </view>
     </view>
+
+    <!-- 底部安全区域 -->
+    <view class="safe-area-bottom"></view>
   </scroll-view>
 </view> 

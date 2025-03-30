@@ -1,5 +1,8 @@
 page {
   background-color: #f5f5f5;
+  height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .container {
@@ -7,7 +10,23 @@ page {
   background-color: #f5f5f5;
   display: flex;
   flex-direction: column;
-  padding-bottom: 100rpx;
+  padding-bottom: 20rpx;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+/* 修复导航栏样式 */
+.weui-navigation-bar {
+  width: 100vw !important;
+}
+
+.weui-navigation-bar__inner {
+  width: 100vw !important;
+  left: 0 !important;
+  margin: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 .header {
@@ -25,51 +44,67 @@ page {
 
 .content-scroll {
   flex: 1;
-  height: calc(100vh - 200rpx);
+  height: calc(100vh - 44rpx);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .ranking-list {
-  padding: 20rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-.top-three {
-  display: flex;
-  justify-content: center;
-  align-items: flex-end;
-  padding: 40rpx 0;
-  margin-bottom: 30rpx;
+/* 顶部排行样式 */
+.top-ranking {
+  background-color: #fff;
+  width: 100%;
+  padding: 30rpx 20rpx;
+  margin-bottom: 20rpx;
+  box-sizing: border-box;
 }
 
-.top-item {
+.top-three-container {
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 0 20rpx;
+}
+
+/* 第一名样式 */
+.champion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 30rpx;
   position: relative;
 }
 
-.top-item.first {
-  transform: scale(1.1);
+.crown-icon {
+  font-size: 40rpx;
+  position: absolute;
+  top: -30rpx;
+  z-index: 2;
 }
 
-.top-item .avatar {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 60rpx;
+.avatar-container {
+  position: relative;
+  display: inline-block;
+}
+
+.champion-avatar {
+  width: 150rpx;
+  height: 150rpx;
+  border-radius: 75rpx;
+  border: 6rpx solid #FFD700;
   margin-bottom: 16rpx;
 }
 
-.top-item.first .avatar {
-  width: 140rpx;
-  height: 140rpx;
-  border-radius: 70rpx;
-}
-
-.top-item .rank-number {
+.rank-badge {
   position: absolute;
-  top: -20rpx;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: auto;
+  right: auto;
+  top: 0;
+  right: 0;
   width: 40rpx;
   height: 40rpx;
   border-radius: 20rpx;
@@ -79,42 +114,110 @@ page {
   font-size: 24rpx;
   font-weight: bold;
   color: #fff;
+  box-shadow: 0 2rpx 4rpx rgba(0,0,0,0.2);
 }
 
-.top-item.first .rank-number {
+.rank-badge.first {
   background-color: #FFD700;
 }
 
-.top-item.second .rank-number {
+.rank-badge.second {
   background-color: #C0C0C0;
 }
 
-.top-item.third .rank-number {
+.rank-badge.third {
   background-color: #CD7F32;
 }
 
-.top-item .name {
-  font-size: 28rpx;
+.champion-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.champion-name {
+  font-size: 32rpx;
+  font-weight: bold;
   color: #333;
   margin-bottom: 8rpx;
 }
 
-.top-item .score {
-  font-size: 24rpx;
+.champion-score {
+  font-size: 28rpx;
   color: #666;
+  background-color: #f5f5f5;
+  padding: 4rpx 16rpx;
+  border-radius: 20rpx;
 }
 
+/* 第二、三名样式 */
+.runners-up {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0 30rpx;
+  box-sizing: border-box;
+}
+
+.runner-up {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 30rpx;
+  position: relative;
+  width: 40%;
+}
+
+.runner-avatar {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50rpx;
+  margin-bottom: 12rpx;
+  position: relative;
+}
+
+.runner-up.second .runner-avatar {
+  border: 4rpx solid #C0C0C0;
+}
+
+.runner-up.third .runner-avatar {
+  border: 4rpx solid #CD7F32;
+}
+
+.runner-name {
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 6rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  text-align: center;
+}
+
+.runner-score {
+  font-size: 24rpx;
+  color: #666;
+  background-color: #f5f5f5;
+  padding: 2rpx 12rpx;
+  border-radius: 16rpx;
+}
+
+/* 其他排名样式 */
 .other-ranking {
   background-color: #fff;
-  border-radius: 12rpx;
+  border-radius: 0;
   padding: 20rpx;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .ranking-item {
   display: flex;
   align-items: center;
-  padding: 20rpx 0;
+  padding: 20rpx 10rpx;
   border-bottom: 1rpx solid #eee;
+  margin: 0 10rpx;
 }
 
 .ranking-item:last-child {
@@ -160,4 +263,50 @@ page {
   font-size: 28rpx;
   color: #07c160;
   font-weight: bold;
+}
+
+.current-user {
+  background-color: rgba(18, 150, 219, 0.1);
+  border-left: 6rpx solid #1296db;
+  padding-left: 14rpx;
+  margin-left: 0;
+}
+
+.current-user-tag {
+  background-color: #1296db;
+  color: white;
+  border-radius: 30rpx;
+  padding: 6rpx 16rpx;
+  font-size: 24rpx;
+}
+
+.empty-tip {
+  text-align: center;
+  padding: 60rpx 0;
+  color: #999;
+  font-size: 28rpx;
+}
+
+.user-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 40rpx;
+  margin-right: 20rpx;
+}
+
+.user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.nickname {
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 4rpx;
+}
+
+.count {
+  font-size: 24rpx;
+  color: #666;
 } 

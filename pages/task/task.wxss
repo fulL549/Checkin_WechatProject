@@ -1,20 +1,22 @@
 page {
-  background-color: #f5f5f5;
-}
-
-.container {
-  min-height: 100vh;
-  background-color: #f5f5f5;
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  padding-bottom: 100rpx;
+  background: #f5f5f5;
+}
+
+.task-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .header {
-  background-color: #fff;
-  padding: 30rpx;
-  text-align: center;
-  margin-bottom: 20rpx;
+  padding: 24rpx 30rpx;
+  margin-top: 128rpx;
 }
 
 .title {
@@ -25,14 +27,18 @@ page {
 
 .form-scroll {
   flex: 1;
-  height: calc(100vh - 200rpx);
+  padding: 0 30rpx;
+  height: calc(100vh - 180rpx);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .form {
   background-color: #fff;
+  border-radius: 16rpx;
   padding: 30rpx;
-  width: 100%;
-  box-sizing: border-box;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
 }
 
 .form-item {
@@ -47,64 +53,63 @@ page {
   display: block;
   font-size: 28rpx;
   color: #666;
-  margin-bottom: 16rpx;
+  margin-bottom: 12rpx;
+}
+
+.required {
+  color: #ff4d4f;
+}
+
+.input, .textarea, .picker {
+  width: 100%;
+  border: 1rpx solid #e0e0e0;
+  border-radius: 8rpx;
+  padding: 20rpx;
+  box-sizing: border-box;
+  font-size: 28rpx;
+  color: #333;
+  background-color: #f9f9f9;
 }
 
 .input {
-  width: 100%;
   height: 80rpx;
-  background-color: #f5f5f5;
-  border-radius: 8rpx;
-  padding: 0 20rpx;
-  font-size: 28rpx;
-  box-sizing: border-box;
 }
 
 .textarea {
+  height: 200rpx;
   width: 100%;
-  height: 160rpx;
-  background-color: #f5f5f5;
-  border-radius: 8rpx;
-  padding: 20rpx;
-  font-size: 28rpx;
-  box-sizing: border-box;
 }
 
 .picker {
-  width: 100%;
   height: 80rpx;
-  background-color: #f5f5f5;
-  border-radius: 8rpx;
-  padding: 0 20rpx;
-  font-size: 28rpx;
-  line-height: 80rpx;
-  color: #333;
-  box-sizing: border-box;
 }
 
-.bottom-button {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 20rpx 30rpx;
-  background-color: #fff;
-  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
-  width: 100%;
-  box-sizing: border-box;
+.placeholder {
+  color: #999;
+}
+
+.submit-section {
+  padding: 40rpx 0;
 }
 
 .submit-btn {
   width: 100%;
-  height: 88rpx;
-  line-height: 88rpx;
-  background-color: #07c160;
-  color: #fff;
+  height: 90rpx;
+  background-color: #1296db;
+  color: white;
   font-size: 32rpx;
-  border-radius: 44rpx;
-  margin-top: 20rpx;
+  font-weight: bold;
+  border-radius: 45rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.submit-btn:active {
+.submit-btn-hover {
   opacity: 0.8;
+}
+
+.safe-area-bottom {
+  height: 100rpx;
+  width: 100%;
 } 

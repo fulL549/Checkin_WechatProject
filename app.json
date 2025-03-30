@@ -1,17 +1,51 @@
 {
   "pages": [
-    "pages/login/login",
     "pages/index/index",
-    "pages/task/task",
     "pages/checkin/checkin",
+    "pages/task/task",
+    "pages/ranking/ranking",
     "pages/profile/profile",
-    "pages/ranking/ranking"
+    "pages/task-detail/task-detail",
+    "pages/captain/captain",
+    "pages/task-manager/task-manager",
+    "pages/history/history",
+    "pages/settings/settings",
+    "pages/members/members",
+    "pages/member-history/member-history"
   ],
   "window": {
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#fff",
     "navigationBarTitleText": "打卡小程序",
-    "navigationBarTextStyle": "black"
+    "navigationBarTextStyle": "black",
+    "navigationStyle": "custom",
+    "pageOrientation": "portrait"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#1296db",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "打卡",
+        "iconPath": "images/tab1.png",
+        "selectedIconPath": "images/tab1-active.png"
+      },
+      {
+        "pagePath": "pages/ranking/ranking",
+        "text": "排行榜",
+        "iconPath": "images/tab2.png",
+        "selectedIconPath": "images/tab2-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我",
+        "iconPath": "images/tab4.png",
+        "selectedIconPath": "images/tab4-active.png"
+      }
+    ]
   },
   "style": "v2",
   "renderer": "skyline",
@@ -19,34 +53,15 @@
     "skyline": {
       "defaultDisplayBlock": true,
       "defaultContentBox": true,
-      "tagNameStyleIsolation": "legacy",
-      "disableABTest": true,
-      "sdkVersionBegin": "3.0.0",
-      "sdkVersionEnd": "15.255.255"
+      "disableABTest": true
     }
   },
   "componentFramework": "glass-easel",
   "sitemapLocation": "sitemap.json",
   "lazyCodeLoading": "requiredComponents",
-  "tabBar": {
-    "custom": false,
-    "color": "#999999",
-    "selectedColor": "#07c160",
-    "backgroundColor": "#ffffff",
-    "borderStyle": "black",
-    "list": [
-      {
-        "pagePath": "pages/index/index",
-        "text": "打卡任务"
-      },
-      {
-        "pagePath": "pages/ranking/ranking",
-        "text": "排行榜"
-      },
-      {
-        "pagePath": "pages/profile/profile",
-        "text": "我"
-      }
-    ]
+  "permission": {
+    "scope.userLocation": {
+      "desc": "您的位置信息将用于打卡定位"
+    }
   }
 }
