@@ -81,16 +81,19 @@ Page({
           memberInfo: res.result.data
         })
       } else {
+        console.error('获取用户信息失败: 返回数据格式错误', res)
         wx.showToast({
-          title: '获取用户信息失败',
-          icon: 'none'
+          title: '获取用户信息失败，请重试',
+          icon: 'none',
+          duration: 2000
         })
       }
     }).catch(err => {
       console.error('获取用户信息失败', err)
       wx.showToast({
-        title: '获取用户信息失败',
-        icon: 'none'
+        title: '网络错误，请检查网络后重试',
+        icon: 'none',
+        duration: 2000
       })
     })
   },
@@ -162,10 +165,16 @@ Page({
           loading: false
         })
       } else {
-        console.log('没有打卡记录或返回结果异常')
+        console.error('获取打卡记录失败: 返回数据格式错误', res)
         this.setData({
           history: [],
           loading: false
+        })
+        
+        wx.showToast({
+          title: '暂无打卡记录',
+          icon: 'none',
+          duration: 2000
         })
       }
       
@@ -175,8 +184,9 @@ Page({
       this.setData({ loading: false })
       
       wx.showToast({
-        title: '获取打卡记录失败',
-        icon: 'none'
+        title: '网络错误，请检查网络后重试',
+        icon: 'none',
+        duration: 2000
       })
       
       if (callback) callback()

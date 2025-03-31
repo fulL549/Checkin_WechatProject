@@ -84,6 +84,11 @@ Page({
   loadMembers: function (callback) {
     this.setData({ loading: true })
     
+    wx.showLoading({
+      title: '加载中...',
+      mask: true
+    })
+    
     console.log('开始加载用户列表')
     wx.cloud.callFunction({
       name: 'team',
@@ -91,6 +96,7 @@ Page({
         action: 'getTeamMembers'
       }
     }).then(res => {
+      wx.hideLoading()
       console.log('获取用户列表结果:', res)
       
       if (res.result && res.result.data) {
@@ -112,7 +118,6 @@ Page({
           loading: false
         })
       } else {
-        // 如果返回的结果没有data字段，记录详细信息
         console.error('获取用户列表返回异常:', res)
         
         this.setData({
@@ -123,21 +128,22 @@ Page({
         })
         
         wx.showToast({
-          title: '获取用户列表失败: ' + (res.result?.message || '无数据'),
+          title: '暂无用户数据',
           icon: 'none',
-          duration: 3000
+          duration: 2000
         })
       }
       
       if (callback) callback()
     }).catch(err => {
+      wx.hideLoading()
       console.error('获取用户列表失败:', err)
       this.setData({ loading: false })
       
       wx.showToast({
-        title: '获取用户列表失败: ' + (err.message || err.errMsg || '未知错误'),
+        title: '网络错误，请检查网络后重试',
         icon: 'none',
-        duration: 3000
+        duration: 2000
       })
       
       if (callback) callback()
