@@ -1,0 +1,42 @@
+<view class="container">
+  <navigation-bar title="用户注册" back="{{true}}" bindback="onBackTap" color="black" background="#FFF"></navigation-bar>
+  
+  <view class="form-container">
+    <view class="logo-container">
+      <image class="logo" src="/images/logo.png" mode="aspectFit"></image>
+      <text class="title">注册新账号</text>
+    </view>
+    
+    <view class="form-group">
+      <view class="form-item">
+        <text class="label">学号</text>
+        <input class="input" type="text" placeholder="请输入学号" bindinput="onStudentIdInput" value="{{studentId}}" />
+      </view>
+      
+      <view class="form-item">
+        <text class="label">昵称</text>
+        <input class="input" type="text" placeholder="请输入昵称（选填）" bindinput="onNickNameInput" value="{{nickName}}" />
+      </view>
+      
+      <view class="form-item">
+        <text class="label">密码</text>
+        <input class="input" type="password" placeholder="请输入密码" bindinput="onPasswordInput" value="{{password}}" />
+      </view>
+      
+      <view class="form-item">
+        <text class="label">确认密码</text>
+        <input class="input" type="password" placeholder="请再次输入密码" bindinput="onConfirmPasswordInput" value="{{confirmPassword}}" />
+      </view>
+    </view>
+    
+    <view class="error-message" wx:if="{{errorMessage}}">{{errorMessage}}</view>
+    
+    <button class="register-btn" bindtap="onRegister" loading="{{loading}}">注册</button>
+    
+    <view class="login-link">
+      已有账号？<text class="link" bindtap="goToLogin">立即登录</text>
+    </view>
+  </view>
+  
+  <view class="safe-area-bottom"></view>
+</view> 

@@ -1,5 +1,7 @@
 {
   "pages": [
+    "pages/login/login",
+    "pages/register/register",
     "pages/index/index",
     "pages/checkin/checkin",
     "pages/task/task",
@@ -63,5 +65,6 @@
     "scope.userLocation": {
       "desc": "您的位置信息将用于打卡定位"
     }
-  }
+  },
+  "entryPagePath": "pages/login/login"
 }

@@ -186,11 +186,11 @@ Page({
    * 点击队员，查看其打卡记录
    */
   onMemberTap: function (e) {
-    const memberId = e.currentTarget.dataset.openid
+    const memberId = e.currentTarget.dataset.id
     const memberName = e.currentTarget.dataset.nickname
     
     wx.navigateTo({
-      url: `/pages/history/history?openId=${memberId}`
+      url: `/pages/member-history/member-history?id=${memberId}&name=${memberName}`
     })
   }
 }) 

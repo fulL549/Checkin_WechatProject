@@ -88,7 +88,7 @@ Page({
     this.setData({ userInfo })
     
     // 检查登录状态
-    if (!userInfo || !userInfo._openid) {
+    if (!userInfo || !userInfo._id) {
       wx.showModal({
         title: '提示',
         content: '请先登录后再打卡',
@@ -296,7 +296,7 @@ Page({
     if (this.data.loading) return
     
     // 检查用户是否已登录
-    if (!this.data.userInfo || !this.data.userInfo._openid) {
+    if (!this.data.userInfo || !this.data.userInfo._id) {
       wx.showToast({
         title: '请先登录',
         icon: 'none'
@@ -340,7 +340,7 @@ Page({
       remark: this.data.form.remark,
       date: this.data.form.date,
       userInfo: {
-        openId: this.data.userInfo._openid,
+        _id: this.data.userInfo._id,
         nickName: this.data.userInfo.nickName,
         avatarUrl: this.data.userInfo.avatarUrl
       }

@@ -5,13 +5,13 @@
       <view class="avatar-section">
         <image class="avatar" src="{{userInfo.avatarUrl || '/images/default-avatar.png'}}"></image>
         <text class="nickname">{{userInfo.nickName || '微信用户'}}</text>
-        <view wx:if="{{!userInfo._openid}}" class="login-btn" bindtap="onLoginTap">点击模拟登录</view>
+        <view wx:if="{{!userInfo._id}}" class="login-btn" bindtap="onLoginTap">点击模拟登录</view>
       </view>
       
       <view class="info-section">
         <view class="info-item">
           <text class="label">用户ID</text>
-          <text class="value">{{userInfo._openid || '未登录'}}</text>
+          <text class="value">{{userInfo._id || '未登录'}}</text>
         </view>
         <view class="info-item">
           <text class="label">累计打卡</text>

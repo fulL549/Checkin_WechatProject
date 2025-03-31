@@ -46,7 +46,7 @@ Page({
     
     if (!userInfo) {
       userInfo = wx.getStorageSync('userInfo') || {}
-      if (userInfo._openid) {
+      if (userInfo._id) {
         app.globalData.userInfo = userInfo
       }
     }

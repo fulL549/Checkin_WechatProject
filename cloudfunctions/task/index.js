@@ -9,25 +9,24 @@ const _ = db.command
 
 // 云函数入口函数
 exports.main = async (event, context) => {
-  const { type, data, page = 1, pageSize = 10, taskId } = event
+  const { type, data, page = 1, pageSize = 10, taskId, userId } = event
   const wxContext = cloud.getWXContext()
-  const openId = wxContext.OPENID
 
   switch (type) {
     case 'create':
-      return createTask(data, openId)
+      return createTask(data, userId)
     case 'list':
       return getTaskList(page, pageSize)
     case 'detail':
       return getTaskDetail(taskId)
     case 'join':
-      return joinTask(taskId, openId)
+      return joinTask(taskId, userId)
     case 'getAll':
       return getAllTasks()
     case 'update':
-      return updateTask(data, openId)
+      return updateTask(data, userId)
     case 'delete':
-      return deleteTask(taskId, openId)
+      return deleteTask(taskId, userId)
     default:
       return {
         code: 400,
@@ -37,8 +36,8 @@ exports.main = async (event, context) => {
 }
 
 // 创建任务
-async function createTask(data, openId) {
-  if (!openId) {
+async function createTask(data, userId) {
+  if (!userId) {
     return {
       code: 403,
       message: '用户未登录'
@@ -47,8 +46,8 @@ async function createTask(data, openId) {
 
   try {
     // 确保创建者ID与当前用户一致
-    if (data.createdBy !== openId) {
-      data.createdBy = openId
+    if (data.createdBy !== userId) {
+      data.createdBy = userId
     }
 
     const result = await db.collection('tasks').add({
@@ -66,7 +65,7 @@ async function createTask(data, openId) {
     await db.collection('activity_logs').add({
       data: {
         type: 'task_create',
-        userId: openId,
+        userId: userId,
         taskId: result._id,
         taskTitle: data.title,
         timestamp: db.serverDate()
@@ -159,8 +158,8 @@ async function getTaskDetail(taskId) {
 }
 
 // 参与任务
-async function joinTask(taskId, openId) {
-  if (!taskId || !openId) {
+async function joinTask(taskId, userId) {
+  if (!taskId || !userId) {
     return {
       code: 400,
       message: '参数不完整'
@@ -179,7 +178,7 @@ async function joinTask(taskId, openId) {
     }
     
     // 检查是否已参与
-    if (task.data.participants && task.data.participants.includes(openId)) {
+    if (task.data.participants && task.data.participants.includes(userId)) {
       return {
         code: 400,
         message: '您已参与此任务'
@@ -189,7 +188,7 @@ async function joinTask(taskId, openId) {
     // 更新任务参与者列表
     await db.collection('tasks').doc(taskId).update({
       data: {
-        participants: _.addToSet(openId),
+        participants: _.addToSet(userId),
         updateTime: db.serverDate()
       }
     })
@@ -198,7 +197,7 @@ async function joinTask(taskId, openId) {
     await db.collection('activity_logs').add({
       data: {
         type: 'task_join',
-        userId: openId,
+        userId: userId,
         taskId: taskId,
         taskTitle: task.data.title,
         timestamp: db.serverDate()
@@ -241,7 +240,7 @@ async function getAllTasks() {
 }
 
 // 更新任务
-async function updateTask(data, openId) {
+async function updateTask(data, userId) {
   if (!data || !data._id) {
     return {
       code: 400,
@@ -261,7 +260,7 @@ async function updateTask(data, openId) {
     }
     
     // 检查是否有权限更新（只有创建者可以更新）
-    if (task.data.createdBy !== openId) {
+    if (task.data.createdBy !== userId) {
       return {
         code: 403,
         message: '无权限更新此任务'
@@ -293,7 +292,7 @@ async function updateTask(data, openId) {
 }
 
 // 删除任务
-async function deleteTask(taskId, openId) {
+async function deleteTask(taskId, userId) {
   if (!taskId) {
     return {
       code: 400,
@@ -313,7 +312,7 @@ async function deleteTask(taskId, openId) {
     }
     
     // 检查是否有权限删除（只有创建者可以删除）
-    if (task.data.createdBy !== openId) {
+    if (task.data.createdBy !== userId) {
       return {
         code: 403,
         message: '无权限删除此任务'
@@ -327,7 +326,7 @@ async function deleteTask(taskId, openId) {
     await db.collection('activity_logs').add({
       data: {
         type: 'task_delete',
-        userId: openId,
+        userId: userId,
         taskId: taskId,
         taskTitle: task.data.title,
         timestamp: db.serverDate()

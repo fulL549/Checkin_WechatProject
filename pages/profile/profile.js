@@ -64,7 +64,7 @@ Page({
     this.setData({ stats: defaultStats })
     
     // 如果用户未登录，不加载统计数据
-    if (!this.data.userInfo || !this.data.userInfo._openid) {
+    if (!this.data.userInfo || !this.data.userInfo._id) {
       return
     }
 
@@ -97,12 +97,12 @@ Page({
     
     // 创建测试用户信息
     const testUser = {
-      _openid: 'test_user_' + Math.floor(Math.random() * 1000), // 生成随机测试用户ID
       nickName: '测试用户',
       avatarUrl: '/images/default-avatar.png',
       gender: Math.random() > 0.5 ? '男' : '女',
       city: '测试城市',
-      province: '测试省份'
+      province: '测试省份',
+      createdAt: new Date()
     }
     
     // 调用云函数创建用户
@@ -177,11 +177,15 @@ Page({
       content: '确定要退出登录吗？',
       success: (res) => {
         if (res.confirm) {
-          // 清除本地存储的用户信息
+          // 清除本地存储的用户信息和登录状态
           wx.removeStorageSync('userInfo')
+          wx.removeStorageSync('isLogin')
+          wx.removeStorageSync('isCaptain')
           
           // 清除全局数据
-          getApp().globalData.userInfo = null
+          const app = getApp()
+          app.globalData.userInfo = null
+          app.globalData.isLogin = false
           
           // 重置页面数据
           this.setData({
@@ -189,12 +193,13 @@ Page({
             stats: {
               totalCheckins: 0,
               rank: '未上榜'
-            }
+            },
+            isCaptain: false
           })
           
-          wx.showToast({
-            title: '已退出登录',
-            icon: 'success'
+          // 跳转到登录页面
+          wx.reLaunch({
+            url: '/pages/login/login'
           })
         }
       }
@@ -203,10 +208,19 @@ Page({
 
   // 点击队长模式
   onCaptainModeTap: function() {
-    // 如果已经是队长模式，直接进入队长界面
-    if (this.data.isCaptain) {
-      this.navigateToCaptainPage();
-      return;
+    // 如果用户未登录，提示登录
+    if (!this.data.userInfo || !this.data.userInfo._id) {
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none'
+      })
+      return
+    }
+
+    // 如果已经是队长，直接进入队长界面
+    if (this.data.userInfo.isCaptain) {
+      this.navigateToCaptainPage()
+      return
     }
     
     // 否则需要密码验证
@@ -216,29 +230,48 @@ Page({
       editable: true,
       success: (res) => {
         if (res.confirm) {
-          const password = res.content;
-          // 验证密码是否为"SYSU"
-          if (password === 'SYSU') {
-            // 保存队长状态
-            this.setData({ isCaptain: true });
-            wx.setStorageSync('isCaptain', true);
-            
+          const password = res.content
+          // 调用云函数验证密码
+          wx.cloud.callFunction({
+            name: 'user',
+            data: {
+              type: 'verifyCaptain',
+              userId: this.data.userInfo._id,
+              password: password
+            }
+          }).then(res => {
+            if (res.result && res.result.code === 0) {
+              // 更新本地用户信息
+              const userInfo = this.data.userInfo
+              userInfo.isCaptain = true
+              getApp().globalData.userInfo = userInfo
+              wx.setStorageSync('userInfo', userInfo)
+              
+              this.setData({ userInfo })
+              
+              wx.showToast({
+                title: '验证成功',
+                icon: 'success'
+              })
+              
+              // 导航到队长页面
+              this.navigateToCaptainPage()
+            } else {
+              wx.showToast({
+                title: res.result.message || '验证失败',
+                icon: 'error'
+              })
+            }
+          }).catch(err => {
+            console.error('验证失败:', err)
             wx.showToast({
-              title: '验证成功',
-              icon: 'success'
-            });
-            
-            // 导航到队长页面
-            this.navigateToCaptainPage();
-          } else {
-            wx.showToast({
-              title: '密码错误',
+              title: '验证失败',
               icon: 'error'
-            });
-          }
+            })
+          })
         }
       }
-    });
+    })
   },
   
   // 导航到队长页面

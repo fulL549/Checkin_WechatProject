@@ -20,13 +20,13 @@ exports.login = async (event, context) => {
     
     // 查询用户是否存在
     const user = await db.collection('users').where({
-      openId: openid
+      _id: openid
     }).get()
     
     if (user.data.length === 0) {
       // 新用户，创建记录
       const newUser = {
-        openId: openid,
+        _id: openid,  // 显式设置_id
         nickName: userInfo.nickName,
         avatarUrl: userInfo.avatarUrl,
         gender: userInfo.gender,
@@ -36,7 +36,8 @@ exports.login = async (event, context) => {
         createdAt: db.serverDate()
       }
       
-      await db.collection('users').add({
+      // 使用doc().set()方式创建用户，避免自动添加_openid
+      await db.collection('users').doc(openid).set({
         data: newUser
       })
       
@@ -49,9 +50,7 @@ exports.login = async (event, context) => {
       }
     } else {
       // 更新用户信息
-      await db.collection('users').where({
-        openId: openid
-      }).update({
+      await db.collection('users').doc(openid).update({
         data: {
           nickName: userInfo.nickName,
           avatarUrl: userInfo.avatarUrl,
@@ -77,13 +76,11 @@ exports.login = async (event, context) => {
 
 // 获取用户信息
 exports.getUserInfo = async (event, context) => {
-  const { openId } = event
+  const { userId } = event
   try {
-    const user = await db.collection('users').where({
-      openId
-    }).get()
+    const user = await db.collection('users').doc(userId).get()
     
-    if (user.data.length === 0) {
+    if (!user.data) {
       return {
         code: 1004,
         message: '用户不存在'
@@ -93,7 +90,7 @@ exports.getUserInfo = async (event, context) => {
     return {
       code: 0,
       message: 'success',
-      data: user.data[0]
+      data: user.data
     }
   } catch (err) {
     return {

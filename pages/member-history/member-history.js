@@ -1,5 +1,4 @@
 const app = getApp()
-const util = require('../../utils/util.js')
 
 Page({
   /**
@@ -74,7 +73,7 @@ Page({
       name: 'user',
       data: {
         type: 'get',
-        openId: this.data.memberId
+        userId: this.data.memberId
       }
     }).then(res => {
       if (res.result && res.result.data) {
@@ -120,30 +119,30 @@ Page({
     
     console.log('加载用户打卡记录，ID:', this.data.memberId)
     
-    // 调用云函数获取打卡记录，使用与个人中心相同的接口
+    // 调用云函数获取打卡记录
     wx.cloud.callFunction({
       name: 'checkin',
       data: {
-        type: 'userHistory',
-        openId: this.data.memberId,
-        page: 1,
-        pageSize: 50 // 获取更多记录
+        type: 'getMemberCheckins',
+        userId: this.data.memberId,
+        startDate: startDate ? startDate.toISOString() : null
       }
     }).then(res => {
       console.log('获取打卡记录结果:', res)
       
-      if (res.result && res.result.data && res.result.data.list) {
-        const historyList = res.result.data.list || [];
+      if (res.result && res.result.code === 0) {
+        const checkins = res.result.data || []
+        const stats = res.result.stats || {}
         
         // 处理打卡记录，添加展示所需信息
-        const history = historyList.map(item => {
+        const history = checkins.map(item => {
           // 创建日期对象
-          const checkinDate = item.createTime ? new Date(item.createTime) : new Date();
+          const checkinDate = item.createTime ? new Date(item.createTime) : new Date()
           
           // 格式化日期、星期、时间
-          const dateText = `${checkinDate.getMonth() + 1}.${checkinDate.getDate()}`;
-          const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-          const weekday = weekdays[checkinDate.getDay()];
+          const dateText = `${checkinDate.getMonth() + 1}.${checkinDate.getDate()}`
+          const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+          const weekday = weekdays[checkinDate.getDay()]
           
           // 返回处理后的记录
           return {
@@ -153,19 +152,15 @@ Page({
             timeText: item.createTimeFormat ? item.createTimeFormat.split(' ')[1] : '00:00',
             taskName: item.taskTitle || '打卡任务',
             location: item.location || '未记录位置'
-          };
-        });
-        
-        console.log('处理后的打卡记录:', history.length)
+          }
+        })
         
         this.setData({
           history,
-          totalCheckins: res.result.data.total || 0,
+          totalCheckins: stats.totalCount || 0,
+          continuousCheckins: stats.continuousCount || 0,
           loading: false
         })
-        
-        // 获取用户统计数据
-        this.loadUserStats();
       } else {
         console.log('没有打卡记录或返回结果异常')
         this.setData({
@@ -196,7 +191,7 @@ Page({
       name: 'checkin',
       data: {
         type: 'userStats',
-        openId: this.data.memberId
+        userId: this.data.memberId
       }
     }).then(res => {
       if (res.result && res.result.data) {

@@ -103,10 +103,10 @@ Page({
         const task = res.result.data
         
         const userInfo = this.data.userInfo
-        const isCreator = userInfo && userInfo._openid === task.createdBy
+        const isCreator = userInfo && userInfo._id === task.createdBy
         
-        // 判断是否参与过
-        const hasJoined = task.participants && userInfo && task.participants.includes(userInfo._openid)
+        // 修改判断逻辑，确保使用正确的用户ID
+        const hasJoined = task.participants && task.participants.some(participant => participant === userInfo._id)
         
         // 格式化时间
         if (task.createTime) {
@@ -127,7 +127,7 @@ Page({
         })
 
         // 如果已登录且参与了任务，检查打卡状态
-        if (hasJoined && userInfo && userInfo._openid) {
+        if (hasJoined && userInfo && userInfo._id) {
           this.checkCheckinStatus(taskId)
         }
       } else {
@@ -166,7 +166,7 @@ Page({
 
   // 检查用户是否已打卡
   checkCheckinStatus: function(taskId) {
-    if (!this.data.userInfo || !this.data.userInfo._openid) {
+    if (!this.data.userInfo || !this.data.userInfo._id) {
       return // 未登录不检查
     }
 
@@ -181,7 +181,8 @@ Page({
       data: {
         type: 'checkStatus',
         taskId: taskId,
-        date: dateStr
+        date: dateStr,
+        userId: this.data.userInfo._id
       }
     })
     .then(res => {
@@ -205,7 +206,7 @@ Page({
   // 参与任务
   joinTask: function() {
     // 检查登录状态
-    if (!this.data.userInfo || !this.data.userInfo._openid) {
+    if (!this.data.userInfo || !this.data.userInfo._id) {
       wx.showToast({
         title: '请先登录',
         icon: 'none'
@@ -224,7 +225,8 @@ Page({
       name: 'task',
       data: {
         type: 'join',
-        taskId: taskId
+        taskId: taskId,
+        userId: this.data.userInfo._id
       }
     })
     .then(res => {
@@ -238,7 +240,7 @@ Page({
         
         this.setData({
           hasJoined: true,
-          'task.participants': [...(this.data.task.participants || []), this.data.userInfo._openid]
+          'task.participants': [...(this.data.task.participants || []), this.data.userInfo._id]
         })
         
         wx.showToast({

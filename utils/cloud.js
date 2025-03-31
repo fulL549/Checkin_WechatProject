@@ -47,7 +47,8 @@ const cloud = {
     createTask: function(data) {
       return module.exports.callFunction('task', {
         type: 'create',
-        data: data
+        data: data,
+        userId: getApp().globalData.userInfo._id
       }, 1);
     },
 
@@ -69,14 +70,15 @@ const cloud = {
     },
     
     // 加入任务
-    joinTask: function(taskId) {
+    joinTask: function(taskId, userId) {
       if (!taskId) {
         return Promise.reject(new Error('任务ID不能为空'));
       }
       
       return module.exports.callFunction('task', {
         type: 'join',
-        taskId
+        taskId,
+        userId: userId || getApp().globalData.userInfo._id
       }, 1);
     },
     
@@ -91,7 +93,8 @@ const cloud = {
     updateTask: function(data) {
       return module.exports.callFunction('task', {
         type: 'update',
-        data: data
+        data: data,
+        userId: getApp().globalData.userInfo._id
       }, 0);
     },
     
@@ -99,7 +102,8 @@ const cloud = {
     deleteTask: function(taskId) {
       return module.exports.callFunction('task', {
         type: 'delete',
-        taskId: taskId
+        taskId: taskId,
+        userId: getApp().globalData.userInfo._id
       }, 0);
     }
   },
@@ -108,9 +112,11 @@ const cloud = {
   checkin: {
     // 提交打卡
     submitCheckin: function(data) {
+      const userId = getApp().globalData.userInfo._id;
       return module.exports.callFunction('checkin', {
         type: 'submit',
-        data: data
+        data: data,
+        userId
       }, 1);
     },
 
@@ -124,15 +130,19 @@ const cloud = {
 
     // 获取用户统计数据
     getUserStats: function() {
+      const userId = getApp().globalData.userInfo._id;
       return module.exports.callFunction('checkin', {
-        type: 'userStats'
+        type: 'userStats',
+        userId
       }, 2);  // 统计数据允许重试2次
     },
 
     // 获取用户打卡历史
     getUserHistory: function(page = 1, pageSize = 10) {
+      const userId = getApp().globalData.userInfo._id;
       return module.exports.callFunction('checkin', {
         type: 'userHistory',
+        userId,
         page,
         pageSize
       }, 1);
@@ -140,9 +150,11 @@ const cloud = {
     
     // 获取打卡记录详情
     getCheckinDetail: function(recordId) {
+      const userId = getApp().globalData.userInfo._id;
       return module.exports.callFunction('checkin', {
         type: 'getRecord',
-        recordId
+        recordId,
+        userId
       }, 1);
     }
   },

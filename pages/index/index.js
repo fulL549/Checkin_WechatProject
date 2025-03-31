@@ -14,15 +14,30 @@ Page({
     userTasks: {} // 记录用户已参与的任务
   },
 
-  onLoad: function() {
-    console.log('cloud module:', cloud)
-    if (!cloud || !cloud.task) {
-      console.error('cloud module not properly loaded')
-      return
+  /**
+   * 生命周期函数--监听页面加载
+   */
+  onLoad: function(options) {
+    console.log('首页加载 - onLoad')
+    
+    // 检查页面访问权限，但添加日志以便调试
+    const app = getApp()
+    const hasPermission = app.checkPagePermission('pages/index/index')
+    console.log('首页权限检查结果:', hasPermission)
+    
+    if (!hasPermission) {
+      console.log('首页没有访问权限，将返回')
+      return  // 如果没有权限，直接返回
     }
-    // 加载用户信息
-    this.loadUserInfo()
-    this.loadTasks()
+    
+    console.log('开始加载首页内容')
+    // 页面正常加载逻辑
+    this.setData({
+      selectedDate: this.formatDate(new Date())
+    });
+    
+    // 加载打卡任务列表
+    this.loadTasks();
   },
 
   onShow: function() {
@@ -51,7 +66,7 @@ Page({
     this.setData({ userInfo })
     
     // 如果用户已登录，获取参与过的任务
-    if (userInfo && userInfo._openid) {
+    if (userInfo && userInfo._id) {
       this.loadUserTasks()
     }
   },
@@ -128,12 +143,11 @@ Page({
         // 处理任务状态
         const processedTasks = newTasks.map(task => {
           // 检查用户是否参与了该任务
-          const userTasks = this.data.userTasks || {}
-          const hasJoined = userTasks[task._id]
+          const hasJoined = task.participants && task.participants.some(participant => participant === this.data.userInfo._id)
           
           return {
             ...task,
-            hasJoined: !!hasJoined,
+            hasJoined,
             // 根据截止日期判断任务是否已过期
             isExpired: task.deadline && new Date(task.deadline) < new Date()
           }
@@ -186,7 +200,7 @@ Page({
   // 处理任务点击
   handleTaskClick: function(e) {
     // 检查用户是否已登录
-    if (!this.data.userInfo || !this.data.userInfo._openid) {
+    if (!this.data.userInfo || !this.data.userInfo._id) {
       wx.showToast({
         title: '请先登录',
         icon: 'none'
@@ -213,7 +227,7 @@ Page({
     e.stopPropagation()
     
     // 检查用户是否已登录
-    if (!this.data.userInfo || !this.data.userInfo._openid) {
+    if (!this.data.userInfo || !this.data.userInfo._id) {
       wx.showToast({
         title: '请先登录',
         icon: 'none'
@@ -228,7 +242,7 @@ Page({
       title: '处理中...'
     })
     
-    cloud.task.joinTask(taskId)
+    cloud.task.joinTask(taskId, this.data.userInfo._id)
       .then(() => {
         wx.hideLoading()
         

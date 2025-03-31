@@ -10,23 +10,22 @@ const $ = db.command.aggregate
 
 // 云函数入口函数
 exports.main = async (event, context) => {
-  const { type, data, rankingType = 'all', taskId, date, recordId, page = 1, pageSize = 10 } = event
+  const { type, data, rankingType = 'all', taskId, date, recordId, page = 1, pageSize = 10, userId } = event
   const wxContext = cloud.getWXContext()
-  const openId = wxContext.OPENID
 
   switch (type) {
     case 'submit':
-      return submitCheckin(data, openId)
+      return submitCheckin(data, userId)
     case 'ranking':
       return getRanking(rankingType)
     case 'userStats':
-      return getUserStats(openId)
+      return getUserStats(userId)
     case 'checkStatus':
-      return checkCheckinStatus(taskId, date, openId)
+      return checkCheckinStatus(taskId, date, userId)
     case 'getRecord':
-      return getCheckinRecord(recordId, openId)
+      return getCheckinRecord(recordId, userId)
     case 'userHistory':
-      return getUserHistory(openId, page, pageSize)
+      return getUserHistory(userId, page, pageSize)
     case 'getMemberCheckins':
       return getMemberCheckins(event)
     default:
@@ -38,15 +37,20 @@ exports.main = async (event, context) => {
 }
 
 // 提交打卡
-async function submitCheckin(data, openId) {
+async function submitCheckin(data, userId) {
   try {
-    // 使用客户端传入的openId或从上下文获取的openId
-    const userOpenId = data.userInfo?.openId || openId
+    // 使用传入的userId参数
+    if (!userId) {
+      return {
+        code: 403,
+        message: '用户未登录'
+      }
+    }
 
     // 检查是否已经打卡
     const existingCheckin = await db.collection('checkins')
       .where({
-        openId: userOpenId,
+        userId: userId,
         date: data.date,
         taskId: data.taskId
       })
@@ -84,14 +88,12 @@ async function submitCheckin(data, openId) {
     // 创建打卡记录
     const checkinData = {
       taskId: data.taskId,
-      openId: userOpenId,
+      userId: userId,
       content: data.content,
       training: data.training,
       remark: data.remark,
       date: data.date,
-      userInfo: data.userInfo || {
-        openId: userOpenId
-      },
+      userInfo: data.userInfo,
       createTime: db.serverDate()
     }
 
@@ -148,7 +150,7 @@ async function getRanking(rankingType) {
     const result = await query
       .aggregate()
       .group({
-        _id: '$openId',
+        _id: '$userId',
         count: $.sum(1)
       })
       .sort({
@@ -158,20 +160,20 @@ async function getRanking(rankingType) {
       .end()
 
     // 获取用户信息
-    const openIds = result.list.map(item => item._id)
+    const userIds = result.list.map(item => item._id)
     
-    // 注意：users集合中使用_openid，而checkins集合中使用openId
+    // 使用_id查询用户
     const users = await db.collection('users')
       .where({
-        _openid: _.in(openIds)
+        _id: _.in(userIds)
       })
       .get()
 
     // 合并用户信息
     const rankingList = result.list.map(item => {
-      const user = users.data.find(u => u._openid === item._id)
+      const user = users.data.find(u => u._id === item._id)
       return {
-        _openid: item._id,
+        userId: item._id,
         nickName: user ? user.nickName : '未知用户',
         avatarUrl: user ? user.avatarUrl : '',
         checkInCount: item.count
@@ -199,11 +201,11 @@ async function getRanking(rankingType) {
 }
 
 // 获取用户统计数据
-async function getUserStats(openId) {
+async function getUserStats(userId) {
   try {
-    // 如果openId为空，直接返回默认数据
-    if (!openId) {
-      console.log('OpenID为空，返回默认数据')
+    // 如果userId为空，直接返回默认数据
+    if (!userId) {
+      console.log('用户ID为空，返回默认数据')
       return {
         code: 0,
         data: {
@@ -215,13 +217,13 @@ async function getUserStats(openId) {
       }
     }
     
-    console.log('获取用户统计数据, openId:', openId)
+    console.log('获取用户统计数据, userId:', userId)
     
     // 获取用户打卡总数
     let totalCount = { total: 0 }
     try {
       totalCount = await db.collection('checkins')
-        .where({ openId })
+        .where({ userId })
         .count()
     } catch (countErr) {
       console.error('获取打卡总数失败:', countErr)
@@ -233,7 +235,7 @@ async function getUserStats(openId) {
       const rankResult = await db.collection('checkins')
         .aggregate()
         .group({
-          _id: '$openId',
+          _id: '$userId',
           count: $.sum(1)
         })
         .sort({
@@ -243,7 +245,7 @@ async function getUserStats(openId) {
       
       // 计算排名
       rankResult.list.forEach((item, index) => {
-        if (item._id === openId) {
+        if (item._id === userId) {
           rank = index + 1
         }
       })
@@ -255,7 +257,7 @@ async function getUserStats(openId) {
     let recentCheckins = []
     try {
       const recentResult = await db.collection('checkins')
-        .where({ openId })
+        .where({ userId })
         .orderBy('createTime', 'desc')
         .limit(5)
         .get()
@@ -276,7 +278,6 @@ async function getUserStats(openId) {
     }
   } catch (err) {
     console.error('获取用户统计数据失败：', err)
-    // 出错时返回默认数据而不是错误
     return {
       code: 0,
       data: {
@@ -290,8 +291,8 @@ async function getUserStats(openId) {
 }
 
 // 检查打卡状态
-async function checkCheckinStatus(taskId, date, openId) {
-  if (!taskId || !date || !openId) {
+async function checkCheckinStatus(taskId, date, userId) {
+  if (!taskId || !date || !userId) {
     return {
       code: 400,
       message: '参数不完整'
@@ -303,7 +304,7 @@ async function checkCheckinStatus(taskId, date, openId) {
     const checkinResult = await db.collection('checkins')
       .where({
         taskId: taskId,
-        openId: openId,
+        userId: userId,
         date: date
       })
       .get()
@@ -329,7 +330,7 @@ async function checkCheckinStatus(taskId, date, openId) {
 }
 
 // 获取打卡记录详情
-async function getCheckinRecord(recordId, openId) {
+async function getCheckinRecord(recordId, userId) {
   if (!recordId) {
     return {
       code: 400,
@@ -349,7 +350,7 @@ async function getCheckinRecord(recordId, openId) {
     }
     
     // 验证权限（仅本人或管理员可查看）
-    if (record.data.openId !== openId && !isAdmin(openId)) {
+    if (record.data.userId !== userId && !isAdmin(userId)) {
       return {
         code: 403,
         message: '无权限查看该记录'
@@ -371,15 +372,15 @@ async function getCheckinRecord(recordId, openId) {
 }
 
 // 判断是否为管理员（可根据实际需求实现）
-function isAdmin(openId) {
+function isAdmin(userId) {
   // 这里可以实现判断管理员的逻辑
   // 例如从数据库中查询该用户是否有管理员权限
   return false
 }
 
-// 获取用户打卡历史 - 保留完整任务ID信息
-async function getUserHistory(openId, page = 1, pageSize = 10) {
-  if (!openId) {
+// 获取用户打卡历史
+async function getUserHistory(userId, page = 1, pageSize = 10) {
+  if (!userId) {
     console.log('获取历史记录：用户ID为空');
     return {
       code: 400,
@@ -387,13 +388,13 @@ async function getUserHistory(openId, page = 1, pageSize = 10) {
     }
   }
 
-  console.log(`获取用户打卡历史, openId: ${openId}, page: ${page}, pageSize: ${pageSize}`);
+  console.log(`获取用户打卡历史, userId: ${userId}, page: ${page}, pageSize: ${pageSize}`);
   const skip = (page - 1) * pageSize;
 
   try {
-    // 直接获取打卡记录
+    // 获取打卡记录
     const historiesResult = await db.collection('checkins')
-      .where({ openId })
+      .where({ userId })
       .orderBy('createTime', 'desc')
       .skip(skip)
       .limit(pageSize)
@@ -402,7 +403,7 @@ async function getUserHistory(openId, page = 1, pageSize = 10) {
     const histories = historiesResult.data || [];
     console.log(`获取到${histories.length}条打卡记录`);
     
-    // 处理并返回完整数据，保留taskId和其他必要字段
+    // 处理并返回完整数据
     const formattedList = histories.map(history => {
       let dateStr = '未知日期';
       let timeStr = '未知时间';
@@ -419,12 +420,11 @@ async function getUserHistory(openId, page = 1, pageSize = 10) {
         console.error('日期格式化错误:', e);
       }
       
-      // 保留原始记录的所有字段，但添加格式化的时间和默认任务标题
       return {
         ...history,
         date: dateStr,
         createTimeFormat: `${dateStr} ${timeStr}`,
-        taskTitle: history.taskTitle || '打卡任务' // 保留原有标题或使用默认值
+        taskTitle: history.taskTitle || '打卡任务'
       };
     });
     
@@ -432,7 +432,7 @@ async function getUserHistory(openId, page = 1, pageSize = 10) {
     let total = 0;
     try {
       const countResult = await db.collection('checkins')
-        .where({ openId })
+        .where({ userId })
         .count();
       total = countResult.total || 0;
     } catch (err) {
@@ -480,23 +480,17 @@ async function getMemberCheckins(event) {
       }
     }
 
-    // 查询条件使用openId，保持与数据库一致
+    // 使用userId查询
     let query = {}
     
-    // 根据数据库中可能使用的字段进行兼容性查询
     if (startDate) {
       query = {
-        $or: [
-          { openId: userId, createTime: _.gte(new Date(startDate)) },
-          { _openid: userId, createTime: _.gte(new Date(startDate)) }
-        ]
+        userId: userId,
+        createTime: _.gte(new Date(startDate))
       }
     } else {
       query = {
-        $or: [
-          { openId: userId },
-          { _openid: userId }
-        ]
+        userId: userId
       }
     }
 
@@ -529,14 +523,9 @@ async function getMemberCheckins(event) {
 // 计算用户打卡统计信息（总次数和连续次数）
 async function calculateCheckinStats(userId) {
   try {
-    // 使用兼容性查询计算总打卡次数
+    // 使用userId查询
     const total = await db.collection('checkins')
-      .where({
-        $or: [
-          { openId: userId },
-          { _openid: userId }
-        ]
-      })
+      .where({ userId })
       .count()
 
     // 计算连续打卡次数
@@ -560,12 +549,7 @@ async function calculateContinuousCheckins(userId) {
   try {
     // 获取用户所有打卡记录，按时间降序排序
     const checkins = await db.collection('checkins')
-      .where({
-        $or: [
-          { openId: userId },
-          { _openid: userId }
-        ]
-      })
+      .where({ userId })
       .orderBy('createTime', 'desc')
       .get()
 

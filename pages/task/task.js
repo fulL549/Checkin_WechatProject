@@ -64,7 +64,7 @@ Page({
 
   // 检查登录状态
   checkLogin: function() {
-    if (!this.data.userInfo || !this.data.userInfo._openid) {
+    if (!this.data.userInfo || !this.data.userInfo._id) {
       wx.showModal({
         title: '提示',
         content: '请先登录后再发布任务',
@@ -145,7 +145,7 @@ Page({
   // 提交任务
   handleSubmit: function() {
     // 再次检查登录状态
-    if (!this.data.userInfo || !this.data.userInfo._openid) {
+    if (!this.data.userInfo || !this.data.userInfo._id) {
       wx.showToast({
         title: '请先登录',
         icon: 'none'
@@ -238,7 +238,7 @@ Page({
     // 添加用户信息和时间戳到任务数据
     const taskData = {
       ...form,
-      createdBy: this.data.userInfo._openid,
+      createdBy: this.data.userInfo._id,
       creatorName: this.data.userInfo.nickName,
       createdAt: new Date().getTime(),
       status: 'active', // 标记任务状态为活跃

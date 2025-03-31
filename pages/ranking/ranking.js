@@ -3,9 +3,8 @@ const cloud = require('../../utils/cloud.js')
 Page({
   data: {
     rankingList: [],
-    loading: false,
-    openid: '',
-    refreshing: false
+    loading: true,
+    userId: wx.getStorageSync('userInfo') ? wx.getStorageSync('userInfo')._id : ''
   },
 
   // 处理导航栏返回按钮点击
@@ -17,7 +16,7 @@ Page({
 
   onLoad: function() {
     this.setData({
-      openid: wx.getStorageSync('userInfo') ? wx.getStorageSync('userInfo')._openid : ''
+      userId: wx.getStorageSync('userInfo') ? wx.getStorageSync('userInfo')._id : ''
     })
     this.loadRanking()
   },

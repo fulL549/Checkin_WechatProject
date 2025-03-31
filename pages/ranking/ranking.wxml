@@ -46,14 +46,14 @@
     <!-- 其他排名 -->
     <view class="ranking-list">
       <view class="other-ranking">
-        <view class="ranking-item {{item._openid === openid ? 'current-user' : ''}}" wx:for="{{rankingList}}" wx:key="index" wx:if="{{index > 2}}">
+        <view class="ranking-item {{item._id === userId ? 'current-user' : ''}}" wx:for="{{rankingList}}" wx:key="index" wx:if="{{index > 2}}">
           <view class="rank-number">{{index + 1}}</view>
           <image class="user-avatar" src="{{item.avatarUrl || '/images/default-avatar.png'}}"></image>
           <view class="user-info">
             <text class="nickname">{{item.nickName || '用户'}}</text>
             <text class="count">{{item.checkInCount || 0}}次打卡</text>
           </view>
-          <text class="current-user-tag" wx:if="{{item._openid === openid}}">我</text>
+          <text class="current-user-tag" wx:if="{{item._id === userId}}">我</text>
         </view>
         <view class="empty-tip" wx:if="{{rankingList.length === 0}}">暂无排行数据</view>
       </view>

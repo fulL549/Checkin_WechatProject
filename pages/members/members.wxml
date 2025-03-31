@@ -17,7 +17,7 @@
     <!-- 用户列表 -->
     <view class="members-list">
       <block wx:if="{{filteredMembers.length > 0}}">
-        <view class="member-item" wx:for="{{filteredMembers}}" wx:key="_id" bindtap="onMemberTap" data-openid="{{item._openid}}" data-nickname="{{item.nickName}}">
+        <view class="member-item" wx:for="{{filteredMembers}}" wx:key="_id" bindtap="onMemberTap" data-id="{{item._id}}" data-nickname="{{item.nickName}}">
           <image class="member-avatar" src="{{item.avatarUrl || '/images/default-avatar.png'}}"></image>
           <view class="member-info">
             <text class="member-name">{{item.nickName || '微信用户'}}</text>
