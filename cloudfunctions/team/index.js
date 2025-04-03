@@ -7,20 +7,18 @@ const _ = db.command
 
 // 云函数入口函数
 exports.main = async (event, context) => {
-  const wxContext = cloud.getWXContext()
-  const openid = wxContext.OPENID
-  console.log('Cloud function team triggered:', event.action, 'by openid:', openid)
+  console.log('Cloud function team triggered:', event.action, 'by userId:', event.userId)
 
   // 处理不同的操作请求
   switch (event.action) {
     case 'createTeam':
-      return await createTeam(event, openid)
+      return await createTeam(event)
     case 'joinTeam':
-      return await joinTeam(event, openid)
+      return await joinTeam(event)
     case 'getTeamInfo':
-      return await getTeamInfo(event, openid)
+      return await getTeamInfo(event)
     case 'getTeamMembers':
-      return await getTeamMembers(openid)
+      return await getTeamMembers(event.userId)
     default:
       return {
         code: -1,
@@ -30,32 +28,57 @@ exports.main = async (event, context) => {
 }
 
 // 创建团队
-async function createTeam(event, openid) {
+async function createTeam(event) {
   // ... 现有代码保持不变 ...
+  const { userId } = event;
+  // 使用userId代替openid
 }
 
 // 加入团队
-async function joinTeam(event, openid) {
+async function joinTeam(event) {
   // ... 现有代码保持不变 ...
+  const { userId } = event;
+  // 使用userId代替openid
 }
 
 // 获取团队信息
-async function getTeamInfo(event, openid) {
+async function getTeamInfo(event) {
   // ... 现有代码保持不变 ...
+  const { userId } = event;
+  // 使用userId代替openid
 }
 
 // 获取团队所有成员（仅队长可调用）
-async function getTeamMembers(openid) {
+async function getTeamMembers(userId) {
   try {
-    console.log('getTeamMembers called with openid:', openid)
+    console.log('getTeamMembers called with userId:', userId)
     
-    // 直接查询所有用户，不再验证团队关系
+    // 如果提供了userId，验证用户是否是队长
+    if (userId) {
+      try {
+        const user = await db.collection('users').doc(userId).get()
+        if (!user.data || !user.data.isCaptain) {
+          return {
+            code: 403,
+            message: '权限不足，只有队长可以查看成员列表'
+          }
+        }
+      } catch (err) {
+        console.error('验证队长权限失败:', err)
+        return {
+          code: 403,
+          message: '权限验证失败'
+        }
+      }
+    }
+    
+    // 直接查询所有用户
     const members = await db.collection('users')
       .get()
     
     console.log('All users count:', members.data.length)
 
-    // 直接返回用户信息，不再查询打卡次数
+    // 返回用户信息
     return {
       code: 0,
       data: members.data,

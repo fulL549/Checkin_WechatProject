@@ -1,32 +1,30 @@
-<view class="container">
-  <navigation-bar title="用户登录" back="{{true}}" bindback="onBackTap" color="black" background="#FFF"></navigation-bar>
+<view class="login-container">
+  <view class="header">
+    <image class="logo" src="/images/logo.png" mode="aspectFit"></image>
+    <text class="title">队员登录</text>
+  </view>
   
-  <view class="form-container">
-    <view class="logo-container">
-      <image class="logo" src="/images/logo.png" mode="aspectFit"></image>
-      <text class="title">用户登录</text>
+  <view class="form">
+    <view class="form-item">
+      <text class="label">学号</text>
+      <input class="input" type="text" value="{{form.studentId}}" bindinput="onStudentIdInput" placeholder="请输入学号" maxlength="20" />
     </view>
     
-    <view class="form-group">
-      <view class="form-item">
-        <text class="label">学号</text>
-        <input class="input" type="text" placeholder="请输入学号" bindinput="onStudentIdInput" value="{{studentId}}" />
-      </view>
-      
-      <view class="form-item">
-        <text class="label">密码</text>
-        <input class="input" type="password" placeholder="请输入密码" bindinput="onPasswordInput" value="{{password}}" />
-      </view>
+    <view class="form-item">
+      <text class="label">密码</text>
+      <input class="input" type="password" value="{{form.password}}" bindinput="onPasswordInput" placeholder="请输入密码" maxlength="20" />
     </view>
     
-    <view class="error-message" wx:if="{{errorMessage}}">{{errorMessage}}</view>
+    <button class="submit-btn" type="primary" bindtap="onSubmit" loading="{{loading}}" disabled="{{loading}}">
+      登录
+    </button>
     
-    <button class="login-btn" bindtap="onLogin" loading="{{loading}}">登录</button>
-    
-    <view class="register-link">
-      没有账号？<text class="link" bindtap="goToRegister">立即注册</text>
+    <view class="toggle-mode" bindtap="navigateToRegister">
+      首次使用？点击注册队员账号
     </view>
   </view>
   
-  <view class="safe-area-bottom"></view>
+  <view class="footer">
+    <text class="copyright">打卡小程序 ©2023</text>
+  </view>
 </view> 

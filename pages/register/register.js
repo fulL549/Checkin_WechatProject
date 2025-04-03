@@ -2,10 +2,18 @@ const app = getApp()
 
 Page({
   data: {
-    studentId: '',
-    nickName: '',
-    password: '',
-    confirmPassword: '',
+    form: {
+      studentId: '',
+      nickName: '',
+      password: '',
+      confirmPassword: '',
+      gender: 'male',
+      college: '',
+      grade: '',
+      teamStatus: '在训'
+    },
+    statusIndex: 0, // 队员状态索引，默认是"在训"
+    teamStatusOptions: ['在训', '退役', '退队'],
     errorMessage: '',
     loading: false
   },
@@ -14,34 +22,34 @@ Page({
     // 页面加载
   },
 
-  // 处理学号输入
+  // 处理学号输入(单独处理因为是必填)
   onStudentIdInput: function(e) {
     this.setData({
-      studentId: e.detail.value,
+      'form.studentId': e.detail.value,
       errorMessage: ''
     })
   },
 
-  // 处理昵称输入
-  onNickNameInput: function(e) {
+  // 通用输入处理函数
+  onInput: function(e) {
+    const field = e.currentTarget.dataset.field
+    const value = e.detail.value
+    
+    // 使用对象计算属性名语法设置表单字段
     this.setData({
-      nickName: e.detail.value,
+      [`form.${field}`]: value,
       errorMessage: ''
     })
   },
-
-  // 处理密码输入
-  onPasswordInput: function(e) {
+  
+  // 处理队员状态选择变化
+  onStatusChange: function(e) {
+    const index = e.detail.value
+    const status = this.data.teamStatusOptions[index]
+    
     this.setData({
-      password: e.detail.value,
-      errorMessage: ''
-    })
-  },
-
-  // 处理确认密码输入
-  onConfirmPasswordInput: function(e) {
-    this.setData({
-      confirmPassword: e.detail.value,
+      statusIndex: index,
+      'form.teamStatus': status,
       errorMessage: ''
     })
   },
@@ -49,33 +57,47 @@ Page({
   // 处理注册按钮点击
   onRegister: function() {
     // 表单验证
-    if (!this.data.studentId) {
+    if (!this.data.form.studentId) {
       this.setData({ errorMessage: '请输入学号' })
       return
     }
     
-    if (!this.data.password) {
+    if (!this.data.form.nickName) {
+      this.setData({ errorMessage: '请输入姓名' })
+      return
+    }
+    
+    if (!this.data.form.password) {
       this.setData({ errorMessage: '请输入密码' })
       return
     }
     
-    if (this.data.password !== this.data.confirmPassword) {
+    if (this.data.form.password !== this.data.form.confirmPassword) {
       this.setData({ errorMessage: '两次输入的密码不一致' })
+      return
+    }
+    
+    if (!this.data.form.college) {
+      this.setData({ errorMessage: '请输入学院' })
+      return
+    }
+    
+    if (!this.data.form.grade) {
+      this.setData({ errorMessage: '请输入年级' })
       return
     }
     
     this.setData({ loading: true, errorMessage: '' })
     
+    // 准备提交的数据(移除confirmPassword)
+    const { confirmPassword, ...submitData } = this.data.form
+
     // 调用云函数注册
     wx.cloud.callFunction({
       name: 'user',
       data: {
         type: 'register',
-        data: {
-          studentId: this.data.studentId,
-          password: this.data.password,
-          nickName: this.data.nickName
-        }
+        data: submitData
       }
     }).then(res => {
       console.log('注册结果', res)

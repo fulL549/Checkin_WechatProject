@@ -1,9 +1,5 @@
 <navigation-bar title="任务详情" back="{{true}}" color="black" background="#FFF"></navigation-bar>
 <view class="detail-container">
-  <view class="header">
-    <text class="title">任务详情</text>
-  </view>
-
   <!-- 调试信息显示区域 -->
   <view class="debug-info" wx:if="{{debugInfo}}">
     <text class="debug-text">{{debugInfo}}</text>
@@ -32,8 +28,26 @@
           <text class="value description">{{task.description}}</text>
         </view>
 
+        <!-- 新增字段：时间周期 -->
         <view class="detail-item">
-          <text class="label">截止时间</text>
+          <text class="label">时间周期</text>
+          <text class="value highlight">{{task.timePeriod || '未设置'}}</text>
+        </view>
+
+        <!-- 新增字段：打卡类型 -->
+        <view class="detail-item">
+          <text class="label">打卡类型</text>
+          <text class="value highlight">{{task.checkinType || '未设置'}}</text>
+        </view>
+
+        <!-- 新增字段：打卡时间 -->
+        <view class="detail-item">
+          <text class="label">打卡时间范围</text>
+          <text class="value highlight">{{task.startDateTime || '未设置'}} 至 {{task.endDateTime || '未设置'}}</text>
+        </view>
+
+        <view class="detail-item">
+          <text class="label">截止日期</text>
           <text class="value">{{task.deadline}}</text>
         </view>
 
@@ -77,32 +91,15 @@
     </view>
 
     <!-- 打卡记录 可以在这里展示该任务的打卡记录 -->
-    <view class="record-section" wx:if="{{hasJoined || isCreator}}">
-      <view class="section-title">打卡记录</view>
-      <!-- 显示当天打卡记录 -->
-      <view wx:if="{{hasCheckedIn && checkinRecord}}" class="checkin-record">
-        <view class="record-date">{{checkinRecord.date}} 打卡</view>
-        <view class="record-content">
-          <text class="content-label">打卡内容:</text>
-          <text class="content-text">{{checkinRecord.content}}</text>
-        </view>
-        <view class="record-content" wx:if="{{checkinRecord.training}}">
-          <text class="content-label">训练内容:</text>
-          <text class="content-text">{{checkinRecord.training}}</text>
-        </view>
-      </view>
-      <view wx:else class="empty-record">
-        <text>今日暂无打卡记录</text>
-      </view>
-    </view>
+    <!-- 已移除打卡记录区域，用户可通过"查看打卡"按钮查看记录 -->
 
     <!-- 任务参与者 -->
     <view class="participants-section" wx:if="{{task.participants.length > 0}}">
       <view class="section-title">参与者 ({{task.participants.length}})</view>
-      <!-- TODO: 这里可以添加参与者列表 -->
       <view class="participants-list">
-        <view class="participant-avatar" wx:for="{{task.participants}}" wx:key="index">
-          <text>{{index + 1}}</text>
+        <view class="participant-item" wx:for="{{task.participants}}" wx:key="index">
+          <image class="participant-avatar" src="{{item.avatarUrl || '/images/default-avatar.png'}}" mode="aspectFill"></image>
+          <text class="participant-name">{{item.nickName || '未知用户'}}</text>
         </view>
       </view>
     </view>

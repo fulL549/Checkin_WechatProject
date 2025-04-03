@@ -11,7 +11,9 @@ Page({
     loading: false,
     refreshing: false,
     userInfo: null,
-    userTasks: {} // 记录用户已参与的任务
+    userTasks: {}, // 记录用户已参与的任务
+    hasLoginTip: false, // 添加登录提示标记
+    selectedDate: ''
   },
 
   /**
@@ -31,24 +33,60 @@ Page({
     }
     
     console.log('开始加载首页内容')
-    // 页面正常加载逻辑
+    
+    // 设置当前日期 - 直接使用字符串而不是调用formatDate函数
+    const today = new Date();
+    const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
     this.setData({
-      selectedDate: this.formatDate(new Date())
+      selectedDate: formattedDate
     });
     
     // 加载打卡任务列表
     this.loadTasks();
   },
 
+  // 格式化日期函数，可以在其他地方使用
+  formatDate: function(date) {
+    if (!date || !(date instanceof Date)) {
+      date = new Date();
+    }
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  },
+
   onShow: function() {
-    // 每次页面显示时刷新数据
-    this.loadUserInfo() // 重新加载用户信息，以防在其他页面已登录
-    this.setData({
-      tasks: [],
-      page: 1,
-      hasMore: true
-    })
-    this.loadTasks()
+    // 获取全局数据
+    const app = getApp();
+    const taskDataChanged = app.globalData.taskDataChanged;
+    
+    // 每次显示页面都检查登录状态
+    this.loadUserInfo();
+    
+    // 检查是否需要刷新数据
+    if (taskDataChanged) {
+      console.log('检测到任务数据变更，刷新首页数据');
+      // 重置全局标记
+      app.globalData.taskDataChanged = false;
+      
+      // 清空任务列表并重新加载
+      this.setData({
+        tasks: [],
+        page: 1,
+        hasMore: true
+      });
+      
+      // 加载任务
+      this.loadTasks();
+    } else {
+      // 如果任务列表为空，则加载任务
+      if (this.data.tasks.length === 0) {
+        this.setData({
+          page: 1,
+          hasMore: true
+        });
+        this.loadTasks();
+      }
+    }
   },
 
   // 加载用户信息
@@ -99,7 +137,23 @@ Page({
   loadTasks: function() {
     if (this.data.loading) return
     
-    this.setData({ loading: true })
+    // 检查用户是否已登录 - 添加登录状态检查
+    const app = getApp();
+    if (!app || !app.globalData || !app.globalData.isLogin || !app.globalData.userInfo) {
+      // 用户未登录，提供登录提示
+      this.setData({
+        loading: false,
+        refreshing: false,
+        tasks: [], // 清空任务列表
+        hasLoginTip: true // 添加登录提示标记
+      });
+      
+      // 停止刷新动画
+      wx.stopPullDownRefresh();
+      return;
+    }
+    
+    this.setData({ loading: true, hasLoginTip: false })
     
     if (!cloud || !cloud.task) {
       // 如果云函数模块未加载，使用模拟数据
@@ -135,23 +189,40 @@ Page({
     }
 
     // 使用云函数获取任务列表
+    let lastTaskId = app.globalData.lastTaskId;
     cloud.task.getTaskList(this.data.page, this.data.pageSize)
       .then(res => {
         const newTasks = res.list || []
         const hasMore = newTasks.length === this.data.pageSize
         
         // 处理任务状态
-        const processedTasks = newTasks.map(task => {
+        let processedTasks = newTasks.map(task => {
           // 检查用户是否参与了该任务
           const hasJoined = task.participants && task.participants.some(participant => participant === this.data.userInfo._id)
+          
+          // 检查是否是新创建的任务
+          const isNewTask = task._id === lastTaskId;
           
           return {
             ...task,
             hasJoined,
+            isNewTask,
             // 根据截止日期判断任务是否已过期
-            isExpired: task.deadline && new Date(task.deadline) < new Date()
+            isExpired: this.isTaskExpired(task)
           }
         })
+        
+        // 如果有新创建的任务，确保它显示在最前面
+        if (lastTaskId) {
+          processedTasks = processedTasks.sort((a, b) => {
+            if (a._id === lastTaskId) return -1;
+            if (b._id === lastTaskId) return 1;
+            return 0;
+          });
+          
+          // 清除lastTaskId，避免重复处理
+          app.globalData.lastTaskId = null;
+        }
         
         this.setData({
           tasks: [...this.data.tasks, ...processedTasks],
@@ -169,12 +240,73 @@ Page({
           loading: false,
           refreshing: false
         })
-        wx.showToast({
-          title: '获取任务列表失败',
-          icon: 'none'
-        })
+        
+        // 错误可能是由于登录状态问题，提供登录入口
+        if (err && err.message && (err.message.includes('login') || err.message.includes('auth') || !app.globalData.isLogin)) {
+          this.showLoginPrompt();
+        } else {
+          wx.showToast({
+            title: '获取任务列表失败',
+            icon: 'none'
+          })
+        }
+        
         wx.stopPullDownRefresh()
       })
+  },
+
+  // 判断任务是否过期的辅助函数
+  isTaskExpired: function(task) {
+    if (!task) return false;
+    
+    // 先检查endDateTime
+    if (task.endDateTime) {
+      return new Date(task.endDateTime) < new Date();
+    } 
+    // 向下兼容，检查老格式的deadline
+    else if (task.deadline) {
+      return new Date(task.deadline) < new Date();
+    }
+    
+    return false;
+  },
+
+  // 添加显示登录提示的方法
+  showLoginPrompt: function() {
+    wx.showModal({
+      title: '提示',
+      content: '请先登录后查看任务列表',
+      confirmText: '去登录',
+      cancelText: '取消',
+      success: (res) => {
+        if (res.confirm) {
+          // 跳转到登录页面
+          wx.navigateTo({
+            url: '/pages/login/login',
+            fail: (err) => {
+              console.error('跳转登录页失败:', err);
+              // 备选方案，跳转到个人中心
+              wx.switchTab({
+                url: '/pages/profile/profile'
+              });
+            }
+          });
+        }
+      }
+    });
+  },
+  
+  // 添加登录按钮点击处理
+  onLoginTap: function() {
+    wx.navigateTo({
+      url: '/pages/login/login',
+      fail: (err) => {
+        console.error('跳转登录页失败:', err);
+        wx.switchTab({
+          url: '/pages/profile/profile'
+        });
+      }
+    });
   },
 
   // 切换底部导航

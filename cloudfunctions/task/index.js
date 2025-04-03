@@ -7,9 +7,19 @@ cloud.init({
 const db = cloud.database()
 const _ = db.command
 
+// 定义打卡时间周期选项
+const TIME_PERIODS = {
+  WEEKS: ['第1周', '第2周', '第3周', '第4周', '第5周', '第6周', '第7周', '第8周', '第9周', '第10周', 
+          '第11周', '第12周', '第13周', '第14周', '第15周', '第16周', '第17周', '第18周'],
+  TRAINING: ['寒训', '暑训']
+}
+
+// 定义打卡类型选项
+const CHECKIN_TYPES = ['非集训', '集训上午', '集训下午']
+
 // 云函数入口函数
 exports.main = async (event, context) => {
-  const { type, data, page = 1, pageSize = 10, taskId, userId } = event
+  const { type, data, page = 1, pageSize = 10, taskId, userId, includeParticipantDetails } = event
   const wxContext = cloud.getWXContext()
 
   switch (type) {
@@ -18,7 +28,7 @@ exports.main = async (event, context) => {
     case 'list':
       return getTaskList(page, pageSize)
     case 'detail':
-      return getTaskDetail(taskId)
+      return getTaskDetail(taskId, includeParticipantDetails)
     case 'join':
       return joinTask(taskId, userId)
     case 'getAll':
@@ -27,11 +37,33 @@ exports.main = async (event, context) => {
       return updateTask(data, userId)
     case 'delete':
       return deleteTask(taskId, userId)
+    case 'getTimePeriods':
+      return getTimePeriods()
+    case 'getCheckinTypes':
+      return getCheckinTypes()
     default:
       return {
         code: 400,
         message: '未知的操作类型'
       }
+  }
+}
+
+// 获取时间周期选项
+function getTimePeriods() {
+  return {
+    code: 0,
+    data: TIME_PERIODS,
+    message: '获取成功'
+  }
+}
+
+// 获取打卡类型选项
+function getCheckinTypes() {
+  return {
+    code: 0,
+    data: CHECKIN_TYPES,
+    message: '获取成功'
   }
 }
 
@@ -44,15 +76,54 @@ async function createTask(data, userId) {
     }
   }
 
+  // 验证必填字段
+  if (!data.title) {
+    return {
+      code: 400,
+      message: '任务标题不能为空'
+    }
+  }
+
+  if (!data.timePeriod) {
+    return {
+      code: 400,
+      message: '时间周期不能为空'
+    }
+  }
+
+  if (!data.checkinType) {
+    return {
+      code: 400,
+      message: '打卡类型不能为空'
+    }
+  }
+
+  if (!data.startTime || !data.endTime) {
+    return {
+      code: 400,
+      message: '打卡起始时间和截止时间不能为空'
+    }
+  }
+
   try {
     // 确保创建者ID与当前用户一致
     if (data.createdBy !== userId) {
       data.createdBy = userId
     }
 
+    // 获取创建者信息
+    const userInfo = await db.collection('users').doc(userId).get()
+    const creatorName = userInfo.data ? userInfo.data.nickName || '未知用户' : '未知用户'
+
     const result = await db.collection('tasks').add({
       data: {
         ...data,
+        creatorName,
+        // 新增的时间周期和打卡类型字段
+        timePeriod: data.timePeriod, // 第1-18周/寒训/暑训
+        checkinType: data.checkinType, // 非集训/集训上午/集训下午
+        startTime: data.startTime, // 打卡起始时间
+        endTime: data.endTime, // 打卡截止时间
         createTime: db.serverDate(),
         updateTime: db.serverDate(),
         status: 'active',
@@ -91,12 +162,12 @@ async function getTaskList(page, pageSize) {
   try {
     const skip = (page - 1) * pageSize
     
-    // 只获取活跃状态的任务
+    // 只获取活跃状态的任务，按截止时间排序
     const result = await db.collection('tasks')
       .where({
         status: 'active'
       })
-      .orderBy('createTime', 'desc')
+      .orderBy('endTime', 'desc')
       .skip(skip)
       .limit(pageSize)
       .get()
@@ -125,7 +196,7 @@ async function getTaskList(page, pageSize) {
 }
 
 // 获取任务详情
-async function getTaskDetail(taskId) {
+async function getTaskDetail(taskId, includeParticipantDetails = false) {
   if (!taskId) {
     return {
       code: 400,
@@ -141,6 +212,41 @@ async function getTaskDetail(taskId) {
         code: 404,
         message: '任务不存在'
       }
+    }
+    
+    // 如果需要获取参与者详细信息
+    if (includeParticipantDetails && task.data.participants && task.data.participants.length > 0) {
+      // 获取所有参与者的详细信息
+      const participantsDetails = [];
+      
+      // 使用Promise.all同时查询所有参与者信息
+      const promises = task.data.participants.map(async (userId) => {
+        try {
+          const userInfo = await db.collection('users').doc(userId).get();
+          if (userInfo.data) {
+            return {
+              _id: userId,
+              avatarUrl: userInfo.data.avatarUrl || '/images/default-avatar.png',
+              nickName: userInfo.data.nickName || '未知用户'
+            };
+          }
+          return {
+            _id: userId,
+            avatarUrl: '/images/default-avatar.png',
+            nickName: '未知用户'
+          };
+        } catch (err) {
+          console.error(`获取用户 ${userId} 信息失败:`, err);
+          return {
+            _id: userId,
+            avatarUrl: '/images/default-avatar.png',
+            nickName: '未知用户'
+          };
+        }
+      });
+      
+      // 等待所有用户查询完成
+      task.data.participants = await Promise.all(promises);
     }
     
     return {
@@ -185,6 +291,16 @@ async function joinTask(taskId, userId) {
       }
     }
     
+    // 检查任务是否已过期
+    const now = new Date()
+    const endTime = new Date(task.data.endTime)
+    if (now > endTime) {
+      return {
+        code: 400,
+        message: '该任务已经截止，无法参与'
+      }
+    }
+    
     // 更新任务参与者列表
     await db.collection('tasks').doc(taskId).update({
       data: {
@@ -204,8 +320,31 @@ async function joinTask(taskId, userId) {
       }
     })
     
+    // 获取当前用户信息，以便返回给前端显示
+    let userInfo = null;
+    try {
+      const userRecord = await db.collection('users').doc(userId).get();
+      if (userRecord.data) {
+        userInfo = {
+          _id: userId,
+          avatarUrl: userRecord.data.avatarUrl || '/images/default-avatar.png',
+          nickName: userRecord.data.nickName || '未知用户'
+        };
+      }
+    } catch (err) {
+      console.error('获取用户信息失败：', err);
+      userInfo = {
+        _id: userId,
+        avatarUrl: '/images/default-avatar.png',
+        nickName: '未知用户'
+      };
+    }
+    
     return {
       code: 0,
+      data: {
+        userInfo
+      },
       message: '参与成功'
     }
   } catch (err) {
@@ -222,7 +361,7 @@ async function getAllTasks() {
   try {
     // 获取所有任务，不分页
     const result = await db.collection('tasks')
-      .orderBy('createTime', 'desc')
+      .orderBy('endTime', 'desc')
       .get()
     
     return {
@@ -264,6 +403,21 @@ async function updateTask(data, userId) {
       return {
         code: 403,
         message: '无权限更新此任务'
+      }
+    }
+
+    // 验证时间周期和打卡类型
+    if (data.timePeriod && !isValidTimePeriod(data.timePeriod)) {
+      return {
+        code: 400,
+        message: '无效的时间周期'
+      }
+    }
+
+    if (data.checkinType && !isValidCheckinType(data.checkinType)) {
+      return {
+        code: 400,
+        message: '无效的打卡类型'
       }
     }
     
@@ -344,4 +498,14 @@ async function deleteTask(taskId, userId) {
       message: '删除任务失败：' + err.message
     }
   }
+}
+
+// 验证时间周期是否有效
+function isValidTimePeriod(timePeriod) {
+  return TIME_PERIODS.WEEKS.includes(timePeriod) || TIME_PERIODS.TRAINING.includes(timePeriod)
+}
+
+// 验证打卡类型是否有效
+function isValidCheckinType(checkinType) {
+  return CHECKIN_TYPES.includes(checkinType)
 } 

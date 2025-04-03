@@ -25,7 +25,28 @@ Page({
    * 生命周期函数--监听页面显示
    */
   onShow: function () {
-    // 队长模式已验证，无需重复检查
+    // 检查队长权限
+    let isCaptain = wx.getStorageSync('isCaptain') || false
+    
+    // 同时检查用户对象中的isCaptain属性
+    const userInfo = getApp().globalData.userInfo || wx.getStorageSync('userInfo') || {}
+    if (userInfo.isCaptain) {
+      isCaptain = true
+      // 确保两个地方的状态保持一致
+      wx.setStorageSync('isCaptain', true)
+    }
+    
+    if (!isCaptain) {
+      wx.showModal({
+        title: '提示',
+        content: '您不是队长，无法访问此页面',
+        showCancel: false,
+        success: () => {
+          wx.navigateBack()
+        }
+      })
+      return
+    }
   },
 
   /**
@@ -90,10 +111,28 @@ Page({
     })
     
     console.log('开始加载用户列表')
+    
+    // 获取用户ID
+    const app = getApp()
+    const userId = app.globalData.userInfo ? app.globalData.userInfo._id : (this.data.userInfo ? this.data.userInfo._id : null)
+    
+    if (!userId) {
+      wx.hideLoading()
+      wx.showToast({
+        title: '请先登录',
+        icon: 'none'
+      })
+      setTimeout(() => {
+        wx.navigateBack()
+      }, 1500)
+      return
+    }
+    
     wx.cloud.callFunction({
       name: 'team',
       data: {
-        action: 'getTeamMembers'
+        action: 'getTeamMembers',
+        userId: userId
       }
     }).then(res => {
       wx.hideLoading()

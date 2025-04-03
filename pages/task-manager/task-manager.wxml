@@ -19,24 +19,47 @@
     </block>
     
     <block wx:if="{{taskList.length > 0}}">
-      <view class="task-list">
-        <view class="task-item" wx:for="{{taskList}}" wx:key="_id">
-          <view class="task-info" bindtap="onTaskDetail" data-id="{{item._id}}">
-            <view class="task-title">{{item.title}}</view>
+      <view class="tasks-container">
+        <view wx:for="{{taskList}}" wx:key="_id" class="task-card {{item.isRecentlyModified ? 'modified-task' : ''}}">
+          <view class="task-header">
+            <text class="task-title">{{item.title}}</text>
+            <view class="task-actions">
+              <view class="action-btn edit" catchtap="onEditTask" data-id="{{item._id}}">编辑</view>
+              <view class="action-btn delete" catchtap="onDeleteTask" data-id="{{item._id}}">删除</view>
+            </view>
+          </view>
+          
+          <view class="task-content" bindtap="onTaskDetail" data-id="{{item._id}}">
+            <view class="task-desc">{{item.description || '无描述'}}</view>
             <view class="task-meta">
-              <text class="deadline">截止日期: {{item.deadline}}</text>
-              <text class="participants">{{item.participants.length}}人参与</text>
+              <view class="meta-item">
+                <text class="meta-label">时间周期:</text>
+                <text class="meta-value">{{item.timePeriod || '未设置'}}</text>
+              </view>
+              
+              <view class="meta-item">
+                <text class="meta-label">打卡类型:</text>
+                <text class="meta-value">{{item.checkinType || '未设置'}}</text>
+              </view>
+              
+              <view class="meta-item">
+                <text class="meta-label">打卡时间:</text>
+                <text class="meta-value">{{item.startDateTime || '未设置'}} - {{item.endDateTime || '未设置'}}</text>
+              </view>
+              
+              <view class="meta-item">
+                <text class="meta-label">参与人数:</text>
+                <text class="meta-value">{{item.participants.length || 0}}人</text>
+              </view>
+              
+              <view class="meta-item">
+                <text class="meta-label">创建日期:</text>
+                <text class="meta-value">{{item.createdAtFormatted || '未知'}}</text>
+              </view>
             </view>
-            <view class="task-description">{{item.description}}</view>
           </view>
-          <view class="task-actions">
-            <view class="action-btn edit" bindtap="onEditTask" data-id="{{item._id}}">
-              编辑
-            </view>
-            <view class="action-btn delete" bindtap="onDeleteTask" data-id="{{item._id}}">
-              删除
-            </view>
-          </view>
+          
+          <view wx:if="{{item.isRecentlyModified}}" class="modified-tag">新增/已更新</view>
         </view>
       </view>
       

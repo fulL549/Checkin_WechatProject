@@ -11,7 +11,16 @@ Page({
 
   onShow: function() {
     // 每次页面显示时检查队长权限
-    const isCaptain = wx.getStorageSync('isCaptain') || false
+    let isCaptain = wx.getStorageSync('isCaptain') || false
+    
+    // 同时检查用户对象中的isCaptain属性
+    const userInfo = getApp().globalData.userInfo || wx.getStorageSync('userInfo') || {}
+    if (userInfo.isCaptain) {
+      isCaptain = true
+      // 确保两个地方的状态保持一致
+      wx.setStorageSync('isCaptain', true)
+    }
+    
     if (!isCaptain) {
       wx.showModal({
         title: '提示',
@@ -21,6 +30,7 @@ Page({
           wx.navigateBack()
         }
       })
+      return
     }
     
     this.loadUserInfo()

@@ -15,7 +15,17 @@ Page({
   
   onShow: function() {
     // 页面显示时检查队长权限
-    const isCaptain = wx.getStorageSync('isCaptain') || false
+    let isCaptain = wx.getStorageSync('isCaptain') || false
+    
+    // 同时检查用户对象中的isCaptain属性
+    const app = getApp();
+    const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo') || {}
+    if (userInfo.isCaptain) {
+      isCaptain = true
+      // 确保两个地方的状态保持一致
+      wx.setStorageSync('isCaptain', true)
+    }
+    
     if (!isCaptain) {
       wx.showModal({
         title: '提示',
@@ -28,8 +38,15 @@ Page({
       return
     }
     
-    // 刷新任务列表
-    this.loadTaskList()
+    // 检查任务数据是否有变更
+    const taskDataChanged = app.globalData.taskDataChanged;
+    if (taskDataChanged) {
+      console.log('检测到任务数据变更，刷新任务管理页面数据');
+      // 重置全局标记（在这个页面重置它，这样首页也能检测到变化）
+      // app.globalData.taskDataChanged = false;
+      // 刷新任务列表
+      this.loadTaskList();
+    }
   },
   
   // 处理导航栏返回按钮点击
@@ -68,34 +85,54 @@ Page({
       return
     }
     
+    // 获取最后操作的任务ID
+    const app = getApp();
+    const lastTaskId = app.globalData.lastTaskId;
+    
     // 调用云函数获取所有任务
-    cloud.task.getAllTasks()
+    return cloud.task.getAllTasks()
       .then(result => {
         console.log('获取任务列表成功:', result)
         
         // 格式化任务数据
-        const taskList = result.map(task => {
+        let taskList = result.map(task => {
           // 格式化日期
           if (task.createdAt) {
             const date = new Date(task.createdAt)
             task.createdAtFormatted = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
           }
           
+          // 标记最新操作的任务
+          task.isRecentlyModified = (task._id === lastTaskId);
+          
           return task
         })
         
+        // 如果有最新操作的任务，将其放在最前面
+        if (lastTaskId) {
+          taskList = taskList.sort((a, b) => {
+            if (a._id === lastTaskId) return -1;
+            if (b._id === lastTaskId) return 1;
+            return 0;
+          });
+        }
+        
         this.setData({
           taskList,
-          loading: false
+          loading: false,
+          refreshing: false
         })
+        
+        return result;
       })
       .catch(err => {
         console.error('获取任务列表失败:', err)
-        this.setData({ loading: false })
+        this.setData({ loading: false, refreshing: false })
         wx.showToast({
           title: '加载任务失败',
           icon: 'none'
         })
+        return Promise.reject(err);
       })
   },
   
@@ -142,6 +179,11 @@ Page({
                 taskList,
                 loading: false
               })
+              
+              // 设置全局数据变更标记
+              const app = getApp();
+              app.globalData.taskDataChanged = true;
+              app.globalData.lastTaskId = null;
               
               wx.showToast({
                 title: '删除成功',

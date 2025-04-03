@@ -8,7 +8,8 @@ Page({
       rank: '未上榜'
     },
     isCaptain: false,
-    refreshing: false
+    refreshing: false,
+    showLoginButton: false
   },
 
   onLoad: function() {
@@ -17,10 +18,6 @@ Page({
       console.error('cloud module not properly loaded')
       return
     }
-    
-    // 加载队长状态
-    const isCaptain = wx.getStorageSync('isCaptain') || false;
-    this.setData({ isCaptain });
     
     this.loadUserInfo()
   },
@@ -41,7 +38,14 @@ Page({
       app.globalData.userInfo = userInfo
     }
     
-    this.setData({ userInfo })
+    // 同步队长状态
+    const isCaptain = userInfo.isCaptain || false
+    wx.setStorageSync('isCaptain', isCaptain)
+    
+    this.setData({ 
+      userInfo,
+      isCaptain: isCaptain
+    })
     
     // 获取用户打卡统计
     this.loadUserStats()
@@ -89,50 +93,30 @@ Page({
       })
   },
 
-  // 处理模拟登录
+  // 处理登录
   onLoginTap: function() {
-    wx.showLoading({
-      title: '登录中...'
-    })
-    
-    // 创建测试用户信息
-    const testUser = {
-      nickName: '测试用户',
-      avatarUrl: '/images/default-avatar.png',
-      gender: Math.random() > 0.5 ? '男' : '女',
-      city: '测试城市',
-      province: '测试省份',
-      createdAt: new Date()
+    // 如果已经在退出过程中，不重复处理
+    const app = getApp()
+    if (app.globalData.isLoggingOut) {
+      wx.showToast({
+        title: '请稍候再试',
+        icon: 'none',
+        duration: 2000
+      })
+      return
     }
     
-    // 调用云函数创建用户
-    cloud.user.createUser(testUser)
-      .then(userData => {
-        // 保存到全局和本地
-        getApp().globalData.userInfo = userData
-        wx.setStorageSync('userInfo', userData)
-        
-        // 更新页面显示
-        this.setData({ userInfo: userData })
-        
+    // 直接导航到登录页面
+    wx.navigateTo({
+      url: '/pages/login/login',
+      fail: (err) => {
+        console.error('跳转到登录页失败:', err)
         wx.showToast({
-          title: '登录成功',
-          icon: 'success'
-        })
-        
-        // 刷新统计数据
-        this.loadUserStats()
-      })
-      .catch(err => {
-        console.error('创建用户失败:', err)
-        wx.showToast({
-          title: '登录失败',
+          title: '跳转失败，请重试',
           icon: 'none'
         })
-      })
-      .finally(() => {
-        wx.hideLoading()
-      })
+      }
+    })
   },
 
   // 点击发布任务
@@ -172,20 +156,30 @@ Page({
 
   // 退出登录
   onLogoutTap: function() {
+    const app = getApp()
+    
+    // 如果已经在登录/退出过程中，不重复处理
+    if (app.globalData.isLoggingIn || app.globalData.isLoggingOut) {
+      wx.showToast({
+        title: '操作进行中，请稍候',
+        icon: 'none',
+        duration: 2000
+      })
+      return
+    }
+    
     wx.showModal({
       title: '提示',
       content: '确定要退出登录吗？',
       success: (res) => {
         if (res.confirm) {
-          // 清除本地存储的用户信息和登录状态
-          wx.removeStorageSync('userInfo')
-          wx.removeStorageSync('isLogin')
-          wx.removeStorageSync('isCaptain')
+          // 标记退出状态
+          app.globalData.isLoggingOut = true
           
-          // 清除全局数据
-          const app = getApp()
-          app.globalData.userInfo = null
-          app.globalData.isLogin = false
+          wx.showLoading({
+            title: '退出中...',
+            mask: true
+          })
           
           // 重置页面数据
           this.setData({
@@ -196,88 +190,146 @@ Page({
             },
             isCaptain: false
           })
+
+          // 清除全局数据
+          app.globalData.userInfo = null
+          app.globalData.isLogin = false
           
-          // 跳转到登录页面
-          wx.reLaunch({
-            url: '/pages/login/login'
+          // 使用同步方法确保清理完成
+          try {
+            wx.removeStorageSync('userInfo')
+            wx.removeStorageSync('isLogin')
+            wx.removeStorageSync('isCaptain')
+            wx.removeStorageSync('userTasks')
+            console.log('本地存储清理完成')
+          } catch (e) {
+            console.error('清理本地存储失败', e)
+          }
+
+          wx.hideLoading()
+          
+          // 显示退出成功提示
+          wx.showToast({
+            title: '已退出登录',
+            icon: 'success',
+            mask: true,
+            duration: 2000
           })
+          
+          // 延长等待时间，确保操作完成
+          setTimeout(() => {
+            app.globalData.isLoggingOut = false
+            
+            // 跳转到登录页面
+            wx.reLaunch({
+              url: '/pages/login/login',
+              complete: () => {
+                console.log('已跳转到登录页面')
+              }
+            })
+          }, 1000)
         }
       }
     })
   },
 
-  // 点击队长模式
+  // 点击队长管理（原队长模式）
   onCaptainModeTap: function() {
-    // 如果用户未登录，提示登录
-    if (!this.data.userInfo || !this.data.userInfo._id) {
-      wx.showToast({
-        title: '请先登录',
-        icon: 'none'
-      })
-      return
-    }
-
-    // 如果已经是队长，直接进入队长界面
-    if (this.data.userInfo.isCaptain) {
-      this.navigateToCaptainPage()
-      return
+    // 如果已经是队长，直接跳转
+    if (this.data.isCaptain) {
+      wx.navigateTo({
+        url: '/pages/captain/captain'
+      });
+      return;
     }
     
-    // 否则需要密码验证
+    // 否则弹出验证码输入框
     wx.showModal({
       title: '队长验证',
-      placeholderText: '请输入队长密码',
+      content: '请输入队长验证码',
       editable: true,
+      placeholderText: '请输入验证码',
       success: (res) => {
         if (res.confirm) {
-          const password = res.content
-          // 调用云函数验证密码
-          wx.cloud.callFunction({
-            name: 'user',
-            data: {
-              type: 'verifyCaptain',
-              userId: this.data.userInfo._id,
-              password: password
-            }
-          }).then(res => {
-            if (res.result && res.result.code === 0) {
-              // 更新本地用户信息
-              const userInfo = this.data.userInfo
-              userInfo.isCaptain = true
-              getApp().globalData.userInfo = userInfo
-              wx.setStorageSync('userInfo', userInfo)
+          // 验证码为"full"
+          if (res.content === 'full') {
+            // 显示加载提示
+            wx.showLoading({
+              title: '验证中...',
+              mask: true
+            });
+            
+            // 调用云函数更新队长状态
+            wx.cloud.callFunction({
+              name: 'user',
+              data: {
+                type: 'verifyCaptain',
+                userId: this.data.userInfo._id,
+                password: 'SYSU'  // 使用云函数中已设置的队长密码
+              }
+            }).then(res => {
+              wx.hideLoading();
               
-              this.setData({ userInfo })
-              
+              if (res.result && res.result.code === 0) {
+                // 验证成功，将用户标记为队长
+                const app = getApp();
+                let userInfo = this.data.userInfo;
+                
+                userInfo.isCaptain = true;
+                app.globalData.userInfo = userInfo;
+                
+                // 更新存储
+                try {
+                  wx.setStorageSync('userInfo', userInfo);
+                  wx.setStorageSync('isCaptain', true);
+                } catch (e) {
+                  console.error('保存队长状态失败', e);
+                }
+                
+                // 更新页面数据
+                this.setData({
+                  userInfo: userInfo,
+                  isCaptain: true
+                });
+                
+                wx.showToast({
+                  title: '验证成功',
+                  icon: 'success',
+                  duration: 2000
+                });
+                
+                // 跳转到队长页面
+                setTimeout(() => {
+                  wx.navigateTo({
+                    url: '/pages/captain/captain'
+                  });
+                }, 1000);
+              } else {
+                wx.showToast({
+                  title: res.result?.message || '验证失败',
+                  icon: 'error',
+                  duration: 2000
+                });
+              }
+            }).catch(err => {
+              wx.hideLoading();
+              console.error('调用云函数失败:', err);
               wx.showToast({
-                title: '验证成功',
-                icon: 'success'
-              })
-              
-              // 导航到队长页面
-              this.navigateToCaptainPage()
-            } else {
-              wx.showToast({
-                title: res.result.message || '验证失败',
-                icon: 'error'
-              })
-            }
-          }).catch(err => {
-            console.error('验证失败:', err)
+                title: '验证失败，请重试',
+                icon: 'error',
+                duration: 2000
+              });
+            });
+          } else {
+            // 验证码错误
             wx.showToast({
-              title: '验证失败',
-              icon: 'error'
-            })
-          })
+              title: '验证码错误',
+              icon: 'error',
+              duration: 2000
+            });
+          }
         }
       }
-    })
-  },
-  
-  // 导航到队长页面
-  navigateToCaptainPage: function() {
-    wx.navigateTo({
-      url: '/pages/captain/captain'
     });
   },
 
@@ -292,5 +344,21 @@ Page({
       .catch(() => {
         this.setData({ refreshing: false });
       });
+  },
+
+  // 队员档案 - 新增功能（待开发）
+  onTeamMemberProfileTap: function() {
+    wx.showToast({
+      title: '功能开发中',
+      icon: 'none'
+    })
+  },
+
+  // 队伍荣誉 - 新增功能（待开发）
+  onTeamHonorsTap: function() {
+    wx.showToast({
+      title: '功能开发中',
+      icon: 'none'
+    })
   },
 }); 

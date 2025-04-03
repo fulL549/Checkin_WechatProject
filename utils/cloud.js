@@ -12,8 +12,15 @@ const cloud = {
           data: data
         })
         .then(res => {
-          // 不管返回什么结果，统一认为是成功的，交给业务逻辑处理
+          // 验证返回结果
           if (res.result) {
+            // 检查是否包含错误码
+            if (res.result.code !== undefined && res.result.code !== 0) {
+              console.error(`云函数 ${name} 返回错误码:`, res.result.code, res.result.message || '');
+              reject(new Error(res.result.message || `错误码: ${res.result.code}`));
+              return;
+            }
+            // 返回数据对象
             resolve(res.result.data);
           } else {
             console.warn(`云函数 ${name} 返回空结果`);
@@ -30,9 +37,8 @@ const cloud = {
               call().then(resolve).catch(reject);
             }, 300);
           } else {
-            // 为避免影响用户体验，返回null而不是报错
-            console.log('达到最大重试次数，返回空结果');
-            resolve(null);
+            // 达到最大重试次数，返回错误
+            reject(err);
           }
         });
       });
@@ -45,11 +51,38 @@ const cloud = {
   task: {
     // 创建任务
     createTask: function(data) {
+      // 额外检查确保日期时间字段存在
+      if (!data.startDateTime || !data.endDateTime) {
+        return Promise.reject(new Error('起始时间和截止时间必须设置'));
+      }
+      
+      // 创建一个新的数据对象，将 startDateTime 映射为 startTime，endDateTime 映射为 endTime
+      const taskData = {
+        ...data,
+        startTime: data.startDateTime,
+        endTime: data.endDateTime
+      };
+      
       return module.exports.callFunction('task', {
         type: 'create',
-        data: data,
+        data: taskData,
         userId: getApp().globalData.userInfo._id
-      }, 1);
+      }, 1).then(result => {
+        // 设置任务数据变更标记
+        const app = getApp();
+        app.globalData.taskDataChanged = true;
+        
+        // 保存最后操作的任务ID
+        if (result && result._id) {
+          app.globalData.lastTaskId = result._id;
+        } else if (result && result.id) { 
+          // 兼容可能的不同返回格式
+          app.globalData.lastTaskId = result.id;
+        }
+        
+        console.log('任务创建成功，ID:', app.globalData.lastTaskId);
+        return result;
+      });
     },
 
     // 获取任务列表
@@ -91,9 +124,21 @@ const cloud = {
     
     // 更新任务
     updateTask: function(data) {
+      // 额外检查确保日期时间字段存在
+      if (!data.startDateTime || !data.endDateTime) {
+        return Promise.reject(new Error('起始时间和截止时间必须设置'));
+      }
+      
+      // 创建一个新的数据对象，将 startDateTime 映射为 startTime，endDateTime 映射为 endTime
+      const taskData = {
+        ...data,
+        startTime: data.startDateTime,
+        endTime: data.endDateTime
+      };
+      
       return module.exports.callFunction('task', {
         type: 'update',
-        data: data,
+        data: taskData,
         userId: getApp().globalData.userInfo._id
       }, 0);
     },
@@ -104,7 +149,27 @@ const cloud = {
         type: 'delete',
         taskId: taskId,
         userId: getApp().globalData.userInfo._id
-      }, 0);
+      }, 0).then(result => {
+        // 设置任务数据变更标记
+        const app = getApp();
+        app.globalData.taskDataChanged = true;
+        app.globalData.lastTaskId = null; // 删除任务时清空最后任务ID
+        return result;
+      });
+    },
+    
+    // 获取时间周期选项
+    getTimePeriods: function() {
+      return module.exports.callFunction('task', {
+        type: 'getTimePeriods'
+      }, 1);
+    },
+    
+    // 获取打卡类型选项
+    getCheckinTypes: function() {
+      return module.exports.callFunction('task', {
+        type: 'getCheckinTypes'
+      }, 1);
     }
   },
 
@@ -117,7 +182,15 @@ const cloud = {
         type: 'submit',
         data: data,
         userId
-      }, 1);
+      }, 1).then(result => {
+        // 设置任务数据变更标记
+        const app = getApp();
+        app.globalData.taskDataChanged = true;
+        if (data && data.taskId) {
+          app.globalData.lastTaskId = data.taskId;
+        }
+        return result;
+      });
     },
 
     // 获取排行榜
@@ -166,12 +239,25 @@ const cloud = {
       // 确保userData中包含需要的额外字段
       const data = {
         ...userData,
-        // 添加或保留这些字段
+        // 基本信息
         nickName: userData.nickName || '',
         avatarUrl: userData.avatarUrl || '',
         studentId: userData.studentId || '',
         gender: userData.gender || 'male',
+        college: userData.college || '',
+        grade: userData.grade || '',
+        
+        // 队员信息
+        teamStatus: userData.teamStatus || '在训',
+        paddleSide: userData.paddleSide || '',
+        competitions: userData.competitions || [],
+        
+        // 个人详细信息
         birthday: userData.birthday || '',
+        joinDate: userData.joinDate || '',
+        weight: userData.weight || '',
+        height: userData.height || '',
+        testLevel: userData.testLevel || '',
         phone: userData.phone || ''
       };
       
@@ -182,10 +268,18 @@ const cloud = {
     },
 
     // 获取用户信息
-    getUser: function(openId) {
+    getUser: function(userId) {
       return module.exports.callFunction('user', {
         type: 'get',
-        openId: openId
+        userId: userId
+      }, 1);
+    },
+    
+    // 更新用户信息
+    updateUser: function(userData) {
+      return module.exports.callFunction('user', {
+        type: 'update',
+        data: userData
       }, 1);
     }
   }

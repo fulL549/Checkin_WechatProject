@@ -2,14 +2,21 @@
 <navigation-bar title="任务打卡" back="{{false}}" color="black" background="#FFF"></navigation-bar>
 <view class="page-container">
   <scroll-view class="scrollarea" scroll-y type="list" enable-pull-down-refresh="{{true}}" refresher-enabled bindscrolltolower="onReachBottom" refresher-triggered="{{refreshing}}" bindrefresherrefresh="onPullDownRefresh">
-    <view class="task-list">
+    <!-- 未登录时显示提示和登录按钮 -->
+    <view wx:if="{{hasLoginTip}}" class="login-prompt">
+      <image class="login-image" src="/images/login.png" mode="aspectFit"></image>
+      <text class="login-tip">登录后查看任务列表</text>
+      <button class="login-btn" bindtap="onLoginTap">立即登录</button>
+    </view>
+    
+    <view class="task-list" wx:else>
       <block wx:if="{{tasks.length > 0}}">
-        <view class="task-item" wx:for="{{tasks}}" wx:key="_id" bindtap="handleTaskClick" data-task="{{item}}" hover-class="task-item-hover">
+        <view class="task-item {{item.isNewTask ? 'new-task' : ''}}" wx:for="{{tasks}}" wx:key="_id" bindtap="handleTaskClick" data-task="{{item}}" hover-class="task-item-hover">
           <view class="task-info">
             <view class="task-header">
               <text class="task-title">{{item.title}}</text>
-              <view class="task-status {{item.hasJoined ? 'joined' : ''}} {{item.isExpired ? 'expired' : ''}}">
-                {{item.isExpired ? '已截止' : (item.hasJoined ? '已参与' : '未参与')}}
+              <view class="task-status {{item.hasJoined ? 'joined' : ''}} {{item.isExpired ? 'expired' : ''}} {{item.isNewTask ? 'new' : ''}}">
+                {{item.isNewTask ? '新' : ''}}{{item.isExpired ? '已截止' : (item.hasJoined ? '已参与' : '未参与')}}
               </view>
             </view>
             <text class="task-desc">{{item.description}}</text>
@@ -23,7 +30,7 @@
             <view class="action-btn join-btn {{item.hasJoined || item.isExpired ? 'disabled' : ''}}" 
                   catchtap="{{!item.hasJoined && !item.isExpired ? 'joinTask' : ''}}" 
                   data-id="{{item._id}}">
-              {{item.hasJoined ? '已参与' : (item.isExpired ? '已截止' : '立即参与')}}
+              {{item.hasJoined ? '已参与' : (item.isExpired ? '已截止' : '点击任务参与')}}
             </view>
           </view>
         </view>

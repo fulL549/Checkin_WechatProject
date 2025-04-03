@@ -5,12 +5,23 @@ Page({
     taskId: '',
     task: null,
     form: {
-      content: '',
-      training: '',
+      // 非集训打卡内容
+      exercise1: { name: '', content: '' },
+      exercise2: { name: '', content: '' },
+      exercise3: { name: '', content: '' },
+      exercise4: { name: '', content: '' },
+      exercise5: { name: '', content: '' },
+      exercise6: { name: '', content: '' },
+      // 集训打卡内容
+      trainingContent: '',
+      // 公共内容
       remark: '',
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      imageUrl: '', // 图片URL
+      imagePath: '' // 本地图片路径
     },
     isView: false,
+    isTrainingCheckin: false, // 是否为集训打卡
     userInfo: null,
     loading: false
   },
@@ -112,7 +123,13 @@ Page({
       .then(task => {
         console.log('获取到任务详情:', task)
         
-        this.setData({ task })
+        // 判断是否为集训打卡
+        const isTrainingCheckin = task.checkinType && (task.checkinType.includes('集训上午') || task.checkinType.includes('集训下午'))
+        
+        this.setData({ 
+          task,
+          isTrainingCheckin
+        })
         
         // 如果是查看模式，加载打卡记录
         if (this.data.isView) {
@@ -150,15 +167,8 @@ Page({
           wx.hideLoading()
           
           if (data) {
-            // 设置表单数据
-            this.setData({
-              form: {
-                content: data.content || '',
-                training: data.training || '',
-                remark: data.remark || '',
-                date: data.date || this.data.form.date
-              }
-            })
+            // 解析打卡内容，兼容新旧格式
+            this.parseCheckinData(data)
           } else {
             wx.showToast({
               title: '加载记录失败',
@@ -188,25 +198,34 @@ Page({
       })
       .then(res => {
         if (res.result && res.result.code === 0 && res.result.data.hasCheckedIn && res.result.data.record) {
-          // 设置表单数据
-          this.setData({
-            form: {
-              content: res.result.data.record.content || '',
-              training: res.result.data.record.training || '',
-              remark: res.result.data.record.remark || '',
-              date: res.result.data.record.date || this.data.form.date
-            }
-          })
+          // 解析打卡内容
+          this.parseCheckinData(res.result.data.record)
         } else {
           // 没有找到记录，使用默认值
-          this.setData({
-            form: {
-              content: '今天暂无打卡内容',
-              training: '无训练记录',
-              remark: '无备注信息',
-              date: today
-            }
-          })
+          if (this.data.isTrainingCheckin) {
+            this.setData({
+              form: {
+                ...this.data.form,
+                trainingContent: '今天暂无训练内容',
+                remark: '无备注信息',
+                date: today
+              }
+            })
+          } else {
+            this.setData({
+              form: {
+                ...this.data.form,
+                exercise1: { name: '', content: '' },
+                exercise2: { name: '', content: '' },
+                exercise3: { name: '', content: '' },
+                exercise4: { name: '', content: '' },
+                exercise5: { name: '', content: '' },
+                exercise6: { name: '', content: '' },
+                remark: '无备注信息',
+                date: today
+              }
+            })
+          }
         }
       })
       .catch(err => {
@@ -214,14 +233,94 @@ Page({
         // 出错时使用默认值
         this.setData({
           form: {
-            content: '获取失败，请重试',
-            training: '',
-            remark: '',
+            ...this.data.form,
+            remark: '获取失败，请重试',
             date: today
           }
         })
       })
     }
+  },
+
+  // 解析打卡记录数据（兼容新旧格式）
+  parseCheckinData: function(data) {
+    try {
+      let formData = { ...this.data.form }
+      formData.date = data.date || this.data.form.date
+      formData.remark = data.remark || ''
+      
+      // 处理图片URL
+      if (data.imageUrl) {
+        formData.imageUrl = data.imageUrl
+      } else if (data.fileID) {
+        formData.imageUrl = data.fileID
+        // 如果有fileID但没有imageUrl或imageUrl已过期，重新获取临时链接
+        this.refreshImageUrl(data.fileID)
+      }
+      
+      // 处理打卡内容
+      if (this.data.isTrainingCheckin) {
+        // 集训打卡
+        formData.trainingContent = data.trainingContent || data.training || data.content || ''
+      } else {
+        // 非集训打卡 - 检查是否为新格式
+        if (data.exercises && Array.isArray(data.exercises)) {
+          // 新格式 - 使用exercises数组
+          for (let i = 0; i < 6; i++) {
+            const exercise = data.exercises[i] || { name: '', content: '' }
+            formData[`exercise${i+1}`] = exercise
+          }
+        } else if (data.content) {
+          // 旧格式 - 尝试解析content字段
+          try {
+            // 尝试解析为JSON
+            const exercises = JSON.parse(data.content)
+            if (exercises && Array.isArray(exercises)) {
+              for (let i = 0; i < 6 && i < exercises.length; i++) {
+                formData[`exercise${i+1}`] = exercises[i]
+              }
+            } else {
+              // 如果不是数组，使用旧格式的内容
+              formData.exercise1 = { name: '训练动作', content: data.content || '' }
+              formData.exercise2 = { name: '附加训练', content: data.training || '' }
+            }
+          } catch (e) {
+            // 如果解析失败，使用旧格式的内容
+            formData.exercise1 = { name: '训练动作', content: data.content || '' }
+            formData.exercise2 = { name: '附加训练', content: data.training || '' }
+          }
+        }
+      }
+      
+      this.setData({ form: formData })
+    } catch (e) {
+      console.error('解析打卡记录数据失败:', e)
+    }
+  },
+
+  // 刷新图片临时链接
+  refreshImageUrl: function(fileID) {
+    if (!fileID) return;
+    
+    console.log('刷新图片URL, fileID:', fileID);
+    
+    wx.cloud.getTempFileURL({
+      fileList: [fileID],
+      success: res => {
+        console.log('获取临时链接成功:', res);
+        if (res.fileList && res.fileList.length > 0) {
+          const tempFileURL = res.fileList[0].tempFileURL;
+          if (tempFileURL) {
+            this.setData({
+              'form.imageUrl': tempFileURL
+            });
+          }
+        }
+      },
+      fail: err => {
+        console.error('获取图片临时链接失败:', err);
+      }
+    });
   },
 
   // 通过记录ID加载打卡记录
@@ -235,23 +334,16 @@ Page({
       .then(data => {
         console.log('获取到打卡记录:', data)
         
-        // 设置表单数据
-        this.setData({
-          form: {
-            content: data.content || '',
-            training: data.training || '',
-            remark: data.remark || '',
-            date: data.date || this.data.form.date
-          },
-          taskId: data.taskId || ''
-        })
-        
-        // 如果记录包含任务ID，加载任务详情
+        // 如果记录包含任务信息，同步任务信息
         if (data.taskId) {
+          this.setData({ taskId: data.taskId })
           this.loadTaskDetail(data.taskId)
         } else {
           wx.hideLoading()
         }
+        
+        // 解析打卡内容
+        this.parseCheckinData(data)
       })
       .catch(err => {
         console.error('获取打卡记录失败:', err)
@@ -270,17 +362,88 @@ Page({
     })
   },
 
-  // 内容输入变化
-  onContentInput: function(e) {
+  // 非集训打卡表单输入处理 - 训练动作1
+  onExercise1NameInput: function(e) {
     this.setData({
-      'form.content': e.detail.value
+      'form.exercise1.name': e.detail.value
     })
   },
-
-  // 训练内容输入变化
-  onTrainingInput: function(e) {
+  
+  onExercise1ContentInput: function(e) {
     this.setData({
-      'form.training': e.detail.value
+      'form.exercise1.content': e.detail.value
+    })
+  },
+  
+  // 训练动作2
+  onExercise2NameInput: function(e) {
+    this.setData({
+      'form.exercise2.name': e.detail.value
+    })
+  },
+  
+  onExercise2ContentInput: function(e) {
+    this.setData({
+      'form.exercise2.content': e.detail.value
+    })
+  },
+  
+  // 训练动作3
+  onExercise3NameInput: function(e) {
+    this.setData({
+      'form.exercise3.name': e.detail.value
+    })
+  },
+  
+  onExercise3ContentInput: function(e) {
+    this.setData({
+      'form.exercise3.content': e.detail.value
+    })
+  },
+  
+  // 训练动作4
+  onExercise4NameInput: function(e) {
+    this.setData({
+      'form.exercise4.name': e.detail.value
+    })
+  },
+  
+  onExercise4ContentInput: function(e) {
+    this.setData({
+      'form.exercise4.content': e.detail.value
+    })
+  },
+  
+  // 训练动作5
+  onExercise5NameInput: function(e) {
+    this.setData({
+      'form.exercise5.name': e.detail.value
+    })
+  },
+  
+  onExercise5ContentInput: function(e) {
+    this.setData({
+      'form.exercise5.content': e.detail.value
+    })
+  },
+  
+  // 训练动作6
+  onExercise6NameInput: function(e) {
+    this.setData({
+      'form.exercise6.name': e.detail.value
+    })
+  },
+  
+  onExercise6ContentInput: function(e) {
+    this.setData({
+      'form.exercise6.content': e.detail.value
+    })
+  },
+  
+  // 集训打卡内容输入
+  onTrainingContentInput: function(e) {
+    this.setData({
+      'form.trainingContent': e.detail.value
     })
   },
 
@@ -288,6 +451,132 @@ Page({
   onRemarkInput: function(e) {
     this.setData({
       'form.remark': e.detail.value
+    })
+  },
+
+  // 图片上传相关
+  chooseImage: function() {
+    wx.chooseImage({
+      count: 1,
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: res => {
+        const tempFilePath = res.tempFilePaths[0]
+        
+        this.setData({
+          'form.imagePath': tempFilePath,
+          'form.imageUrl': tempFilePath // 先用本地路径预览
+        })
+      }
+    })
+  },
+  
+  // 删除图片
+  deleteImage: function() {
+    this.setData({
+      'form.imagePath': '',
+      'form.imageUrl': ''
+    })
+  },
+  
+  // 预览图片
+  previewImage: function() {
+    if (!this.data.form.imageUrl) return;
+    
+    // 检查是否是云存储fileID
+    if (this.data.form.imageUrl.startsWith('cloud://') || this.data.form.imageUrl.startsWith('https://')) {
+      wx.showLoading({ title: '加载图片...' });
+      
+      // 获取新的临时链接以确保预览正常
+      wx.cloud.getTempFileURL({
+        fileList: [this.data.form.imageUrl],
+        success: res => {
+          wx.hideLoading();
+          if (res.fileList && res.fileList.length > 0) {
+            const tempFileURL = res.fileList[0].tempFileURL;
+            if (tempFileURL) {
+              // 更新图片URL
+              this.setData({
+                'form.imageUrl': tempFileURL
+              });
+              
+              // 预览图片
+              wx.previewImage({
+                urls: [tempFileURL],
+                current: tempFileURL
+              });
+            } else {
+              // 如果获取临时链接失败，尝试直接使用原URL
+              wx.previewImage({
+                urls: [this.data.form.imageUrl],
+                current: this.data.form.imageUrl
+              });
+            }
+          }
+        },
+        fail: err => {
+          console.error('获取预览图片链接失败:', err);
+          wx.hideLoading();
+          
+          // 尝试直接预览
+          wx.previewImage({
+            urls: [this.data.form.imageUrl],
+            current: this.data.form.imageUrl
+          });
+        }
+      });
+    } else {
+      // 本地图片直接预览
+      wx.previewImage({
+        urls: [this.data.form.imageUrl],
+        current: this.data.form.imageUrl
+      });
+    }
+  },
+  
+  // 上传图片到云存储
+  uploadImage: function() {
+    return new Promise((resolve, reject) => {
+      if (!this.data.form.imagePath) {
+        // 没有选择图片，直接返回成功
+        resolve(null)
+        return
+      }
+      
+      const filePath = this.data.form.imagePath
+      const cloudPath = `checkin_images/${this.data.userInfo._id}_${new Date().getTime()}${filePath.match(/\.[^.]+?$/)[0]}`
+      
+      wx.showLoading({ title: '上传图片中...' })
+      
+      wx.cloud.uploadFile({
+        cloudPath,
+        filePath,
+        success: res => {
+          console.log('图片上传成功:', res)
+          const fileID = res.fileID
+          
+          // 获取临时访问链接
+          wx.cloud.getTempFileURL({
+            fileList: [fileID],
+            success: res => {
+              const tempFileURL = res.fileList[0].tempFileURL
+              wx.hideLoading()
+              resolve({ fileID, imageUrl: tempFileURL })
+            },
+            fail: err => {
+              console.error('获取图片链接失败:', err)
+              wx.hideLoading()
+              // 即使获取临时链接失败，也返回fileID
+              resolve({ fileID, imageUrl: fileID })
+            }
+          })
+        },
+        fail: err => {
+          console.error('图片上传失败:', err)
+          wx.hideLoading()
+          reject(err)
+        }
+      })
     })
   },
 
@@ -304,23 +593,44 @@ Page({
       return
     }
     
-    // 表单验证
-    if (!this.data.form.content.trim()) {
-      wx.showToast({
-        title: '请填写打卡内容',
-        icon: 'none'
-      })
-      return
+    // 表单验证 - 根据打卡类型进行不同验证
+    if (this.data.isTrainingCheckin) {
+      // 集训打卡验证
+      if (!this.data.form.trainingContent.trim()) {
+        wx.showToast({
+          title: '请填写训练内容',
+          icon: 'none'
+        })
+        return
+      }
+    } else {
+      // 非集训打卡验证 - 前三个训练动作必填
+      if (!this.data.form.exercise1.name.trim() || !this.data.form.exercise1.content.trim()) {
+        wx.showToast({
+          title: '请完善训练动作一',
+          icon: 'none'
+        })
+        return
+      }
+      
+      if (!this.data.form.exercise2.name.trim() || !this.data.form.exercise2.content.trim()) {
+        wx.showToast({
+          title: '请完善训练动作二',
+          icon: 'none'
+        })
+        return
+      }
+      
+      if (!this.data.form.exercise3.name.trim() || !this.data.form.exercise3.content.trim()) {
+        wx.showToast({
+          title: '请完善训练动作三',
+          icon: 'none'
+        })
+        return
+      }
     }
-
-    if (!this.data.form.training.trim()) {
-      wx.showToast({
-        title: '请填写训练内容',
-        icon: 'none'
-      })
-      return
-    }
-
+    
+    // 备注必填
     if (!this.data.form.remark.trim()) {
       wx.showToast({
         title: '请填写备注信息',
@@ -332,21 +642,57 @@ Page({
     this.setData({ loading: true })
     wx.showLoading({ title: '提交中...' })
     
-    // 准备打卡数据
-    const checkinData = {
-      taskId: this.data.taskId,
-      content: this.data.form.content,
-      training: this.data.form.training,
-      remark: this.data.form.remark,
-      date: this.data.form.date,
-      userInfo: {
-        _id: this.data.userInfo._id,
-        nickName: this.data.userInfo.nickName,
-        avatarUrl: this.data.userInfo.avatarUrl
-      }
-    }
-    
-    cloud.checkin.submitCheckin(checkinData)
+    // 先上传图片（如果有）
+    this.uploadImage()
+      .then(imageResult => {
+        // 准备打卡数据
+        let checkinData = {
+          taskId: this.data.taskId,
+          date: this.data.form.date,
+          remark: this.data.form.remark,
+          userInfo: {
+            _id: this.data.userInfo._id,
+            nickName: this.data.userInfo.nickName,
+            avatarUrl: this.data.userInfo.avatarUrl
+          }
+        }
+        
+        // 添加图片信息（如果上传成功）
+        if (imageResult) {
+          checkinData.fileID = imageResult.fileID
+          checkinData.imageUrl = imageResult.imageUrl
+        }
+        
+        // 根据打卡类型设置不同的内容
+        if (this.data.isTrainingCheckin) {
+          // 集训打卡
+          checkinData.trainingContent = this.data.form.trainingContent
+          // 兼容旧接口
+          checkinData.content = this.data.form.trainingContent
+          checkinData.training = this.data.form.trainingContent
+        } else {
+          // 非集训打卡 - 将训练动作打包为数组
+          const exercises = [
+            this.data.form.exercise1,
+            this.data.form.exercise2,
+            this.data.form.exercise3,
+            this.data.form.exercise4,
+            this.data.form.exercise5,
+            this.data.form.exercise6
+          ]
+          
+          // 新格式 - 保存为数组
+          checkinData.exercises = exercises
+          
+          // 兼容旧接口 - 将数据序列化为JSON字符串保存在content字段中
+          checkinData.content = JSON.stringify(exercises)
+          
+          // 使用第一个训练动作作为training字段，兼容旧接口
+          checkinData.training = `${this.data.form.exercise1.name}: ${this.data.form.exercise1.content}`
+        }
+        
+        return cloud.checkin.submitCheckin(checkinData)
+      })
       .then(() => {
         wx.hideLoading()
         this.setData({ loading: false })
@@ -371,5 +717,31 @@ Page({
           icon: 'none'
         })
       })
-  }
+  },
+
+  // 处理图片加载错误
+  handleImageError: function(e) {
+    console.error('图片加载错误:', e);
+    
+    // 如果是查看模式且有fileID，尝试刷新图片URL
+    if (this.data.isView && this.data.recordId) {
+      // 重新加载记录以获取fileID
+      wx.cloud.callFunction({
+        name: 'checkin',
+        data: {
+          type: 'getDetail',
+          recordId: this.data.recordId
+        }
+      }).then(res => {
+        if (res.result && res.result.code === 0 && res.result.data) {
+          const fileID = res.result.data.fileID;
+          if (fileID) {
+            this.refreshImageUrl(fileID);
+          }
+        }
+      }).catch(err => {
+        console.error('重新获取记录失败:', err);
+      });
+    }
+  },
 }) 

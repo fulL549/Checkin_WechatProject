@@ -1,5 +1,5 @@
 <view class="container">
-  <navigation-bar title="打卡历史" back="{{true}}" color="black" background="#FFF" bindback="onBackTap"></navigation-bar>
+  <navigation-bar title="个人打卡历史记录" back="{{true}}" color="black" background="#FFF" bindback="onBackTap"></navigation-bar>
   
   <scroll-view class="content-scroll" scroll-y type="list" enable-pull-down-refresh="{{true}}" refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onPullDownRefresh">
     <!-- 标题 -->

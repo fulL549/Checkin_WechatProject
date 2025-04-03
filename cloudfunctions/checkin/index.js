@@ -63,18 +63,27 @@ async function submitCheckin(data, userId) {
       }
     }
 
-    // 表单验证
-    if (!data.content) {
-      return {
-        code: 400,
-        message: '打卡内容不能为空'
-      }
-    }
+    // 获取打卡任务信息，用于判断打卡类型
+    const taskInfo = await db.collection('tasks').doc(data.taskId).get()
+    const isTrainingCheckin = taskInfo.data && taskInfo.data.checkinType && 
+      (taskInfo.data.checkinType.includes('集训上午') || taskInfo.data.checkinType.includes('集训下午'))
 
-    if (!data.training) {
-      return {
-        code: 400,
-        message: '训练内容不能为空'
+    // 表单验证 - 根据打卡类型执行不同的验证
+    if (isTrainingCheckin) {
+      // 集训打卡验证
+      if (!data.trainingContent && !data.content) {
+        return {
+          code: 400,
+          message: '训练内容不能为空'
+        }
+      }
+    } else {
+      // 非集训打卡验证 - 检查是否有训练动作数据
+      if (!data.exercises && !data.content) {
+        return {
+          code: 400,
+          message: '训练内容不能为空'
+        }
       }
     }
 
@@ -89,12 +98,24 @@ async function submitCheckin(data, userId) {
     const checkinData = {
       taskId: data.taskId,
       userId: userId,
-      content: data.content,
-      training: data.training,
+      // 兼容旧版字段
+      content: data.content || '',
+      training: data.training || '',
+      // 新增字段
+      trainingContent: data.trainingContent || data.content || '',
+      exercises: data.exercises || [], // 训练动作数组
       remark: data.remark,
       date: data.date,
       userInfo: data.userInfo,
       createTime: db.serverDate()
+    }
+
+    // 如果有图片信息，添加到记录中
+    if (data.fileID) {
+      checkinData.fileID = data.fileID
+    }
+    if (data.imageUrl) {
+      checkinData.imageUrl = data.imageUrl
     }
 
     const result = await db.collection('checkins').add({
@@ -357,9 +378,45 @@ async function getCheckinRecord(recordId, userId) {
       }
     }
     
+    // 如果是新格式数据，确保所有需要的字段都存在
+    const checkinData = { ...record.data }
+    
+    // 确保exercises字段存在
+    if (!checkinData.exercises) {
+      checkinData.exercises = []
+      
+      // 尝试从content字段解析exercises数据
+      if (checkinData.content) {
+        try {
+          // 尝试解析JSON
+          const exercises = JSON.parse(checkinData.content)
+          if (exercises && Array.isArray(exercises)) {
+            checkinData.exercises = exercises
+          } else {
+            // 如果不是数组，创建简单的训练动作数据
+            checkinData.exercises = [
+              { name: '训练动作', content: checkinData.content || '' },
+              { name: '附加训练', content: checkinData.training || '' }
+            ]
+          }
+        } catch (e) {
+          // 解析失败，创建简单的训练动作数据
+          checkinData.exercises = [
+            { name: '训练动作', content: checkinData.content || '' },
+            { name: '附加训练', content: checkinData.training || '' }
+          ]
+        }
+      }
+    }
+    
+    // 确保trainingContent字段存在
+    if (!checkinData.trainingContent) {
+      checkinData.trainingContent = checkinData.training || checkinData.content || ''
+    }
+    
     return {
       code: 0,
-      data: record.data,
+      data: checkinData,
       message: '获取成功'
     }
   } catch (err) {
@@ -419,12 +476,59 @@ async function getUserHistory(userId, page = 1, pageSize = 10) {
       } catch (e) {
         console.error('日期格式化错误:', e);
       }
+
+      // 处理打卡内容，确保新旧格式兼容
+      let contentSummary = '';
+      
+      // 判断是否是集训打卡（使用trainingContent字段或checkinType字段）
+      const isTrainingCheckin = history.trainingContent || 
+        (history.taskInfo && history.taskInfo.checkinType && 
+         (history.taskInfo.checkinType.includes('集训上午') || 
+          history.taskInfo.checkinType.includes('集训下午')));
+      
+      if (isTrainingCheckin) {
+        // 集训打卡，使用trainingContent或旧字段
+        contentSummary = history.trainingContent || history.training || history.content || '无内容';
+      } else {
+        // 非集训打卡，检查exercises数组
+        if (history.exercises && Array.isArray(history.exercises) && history.exercises.length > 0) {
+          // 使用前三个训练动作的名称
+          const exerciseNames = history.exercises
+            .slice(0, 3)
+            .filter(ex => ex && ex.name)
+            .map(ex => ex.name);
+          
+          contentSummary = exerciseNames.join('、') || '训练动作';
+        } else if (history.content) {
+          // 尝试解析content字段
+          try {
+            const exercises = JSON.parse(history.content);
+            if (exercises && Array.isArray(exercises) && exercises.length > 0) {
+              const exerciseNames = exercises
+                .slice(0, 3)
+                .filter(ex => ex && ex.name)
+                .map(ex => ex.name);
+              
+              contentSummary = exerciseNames.join('、') || '训练动作';
+            } else {
+              // 无法解析为数组，使用原始内容
+              contentSummary = history.content.substring(0, 20) + (history.content.length > 20 ? '...' : '');
+            }
+          } catch (e) {
+            // 解析失败，使用原始内容
+            contentSummary = history.content.substring(0, 20) + (history.content.length > 20 ? '...' : '');
+          }
+        } else {
+          contentSummary = '无训练内容';
+        }
+      }
       
       return {
         ...history,
         date: dateStr,
         createTimeFormat: `${dateStr} ${timeStr}`,
-        taskTitle: history.taskTitle || '打卡任务'
+        taskTitle: history.taskTitle || '打卡任务',
+        contentSummary: contentSummary // 添加内容摘要
       };
     });
     

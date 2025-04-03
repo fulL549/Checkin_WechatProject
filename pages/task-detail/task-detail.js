@@ -58,9 +58,20 @@ Page({
 
   // 页面显示时刷新数据
   onShow: function() {
+    // 获取全局数据
+    const app = getApp();
+    const taskDataChanged = app.globalData.taskDataChanged;
+    const lastTaskId = app.globalData.lastTaskId;
+    
+    // 如果数据变更且涉及当前任务，重新加载任务详情
+    if (taskDataChanged && this.data.taskId && (lastTaskId === this.data.taskId || !lastTaskId)) {
+      console.log('检测到任务数据变更，刷新任务详情');
+      this.loadTaskDetail(this.data.taskId);
+    }
+    
     // 如果已经加载了任务ID，重新检查打卡状态
     if (this.data.taskId) {
-      this.checkCheckinStatus(this.data.taskId)
+      this.checkCheckinStatus(this.data.taskId);
     }
   },
 
@@ -93,7 +104,8 @@ Page({
       name: 'task',
       data: {
         type: 'detail',
-        taskId: taskId
+        taskId: taskId,
+        includeParticipantDetails: true // 设置标志，请求包含参与者详细信息
       }
     })
     .then(res => {
@@ -102,11 +114,29 @@ Page({
       if (res.result && res.result.code === 0 && res.result.data) {
         const task = res.result.data
         
+        // 添加字段兼容性处理
+        if (!task.startDateTime && task.startTime) {
+          task.startDateTime = task.startTime;
+        }
+        
+        if (!task.endDateTime && task.endTime) {
+          task.endDateTime = task.endTime;
+        }
+        
         const userInfo = this.data.userInfo
         const isCreator = userInfo && userInfo._id === task.createdBy
         
-        // 修改判断逻辑，确保使用正确的用户ID
-        const hasJoined = task.participants && task.participants.some(participant => participant === userInfo._id)
+        // 判断用户是否已参与任务
+        let hasJoined = false;
+        if (userInfo && userInfo._id) {
+          // 如果参与者是详细信息的数组，需要检查_id字段
+          if (task.participants && task.participants.length > 0 && task.participants[0].hasOwnProperty('_id')) {
+            hasJoined = task.participants.some(participant => participant._id === userInfo._id);
+          } else {
+            // 如果仍是简单ID数组
+            hasJoined = task.participants && task.participants.some(participant => participant === userInfo._id);
+          }
+        }
         
         // 格式化时间
         if (task.createTime) {
@@ -238,9 +268,32 @@ Page({
         userTasks[taskId] = true
         wx.setStorageSync('userTasks', userTasks)
         
+        // 获取返回的用户信息
+        const userInfo = res.result.data && res.result.data.userInfo || {
+          _id: this.data.userInfo._id,
+          avatarUrl: this.data.userInfo.avatarUrl || '/images/default-avatar.png',
+          nickName: this.data.userInfo.nickName || '未知用户'
+        };
+        
+        // 判断当前参与者列表格式
+        let updatedParticipants = [];
+        if (this.data.task.participants && this.data.task.participants.length > 0 && 
+            typeof this.data.task.participants[0] === 'object') {
+          // 如果是对象数组，添加新用户对象
+          updatedParticipants = [...this.data.task.participants, userInfo];
+        } else {
+          // 如果是ID数组，则获取当前用户的详细信息
+          const currentParticipants = this.data.task.participants || [];
+          // 先添加用户ID到列表中
+          updatedParticipants = [...currentParticipants, this.data.userInfo._id];
+          
+          // 重新加载详细信息
+          this.loadTaskDetail(this.data.taskId);
+        }
+        
         this.setData({
           hasJoined: true,
-          'task.participants': [...(this.data.task.participants || []), this.data.userInfo._id]
+          'task.participants': updatedParticipants
         })
         
         wx.showToast({
