@@ -13,7 +13,9 @@
     "pages/history/history",
     "pages/settings/settings",
     "pages/members/members",
-    "pages/member-history/member-history"
+    "pages/member-history/member-history",
+    "pages/member-profiles/member-profiles",
+    "pages/member-detail/member-detail"
   ],
   "window": {
     "backgroundTextStyle": "light",

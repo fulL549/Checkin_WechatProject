@@ -51,6 +51,13 @@ exports.main = async (event, context) => {
 
 // 获取时间周期选项
 function getTimePeriods() {
+  console.log('获取时间周期选项，返回:', TIME_PERIODS);
+  
+  // 确保TIME_PERIODS结构完整
+  if (!TIME_PERIODS.WEEKS || !TIME_PERIODS.TRAINING) {
+    console.warn('TIME_PERIODS结构不完整，使用默认值');
+  }
+  
   return {
     code: 0,
     data: TIME_PERIODS,
@@ -60,6 +67,8 @@ function getTimePeriods() {
 
 // 获取打卡类型选项
 function getCheckinTypes() {
+  console.log('获取打卡类型选项，返回:', CHECKIN_TYPES);
+  
   return {
     code: 0,
     data: CHECKIN_TYPES,

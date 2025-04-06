@@ -10,13 +10,22 @@ Page({
     searchValue: '',
     totalMembers: 0,
     loading: true,
-    userInfo: null
+    userInfo: null,
+    refreshing: false,
+    action: 'history' // 默认是跳转到历史记录，可修改为settings
   },
 
   /**
    * 生命周期函数--监听页面加载
    */
   onLoad: function (options) {
+    // 检查是否有action参数
+    if (options.action === 'settings') {
+      this.setData({
+        action: 'settings'
+      })
+    }
+    
     this.loadUserInfo()
     this.loadMembers()
   },
@@ -234,8 +243,17 @@ Page({
     const memberId = e.currentTarget.dataset.id
     const memberName = e.currentTarget.dataset.nickname
     
-    wx.navigateTo({
-      url: `/pages/member-history/member-history?id=${memberId}&name=${memberName}`
-    })
+    // 根据action决定跳转到历史记录页面还是设置页面
+    if (this.data.action === 'settings') {
+      // 跳转到设置页面
+      wx.navigateTo({
+        url: `/pages/settings/settings?userId=${memberId}&userName=${encodeURIComponent(memberName)}&isCaptainEdit=true`
+      })
+    } else {
+      // 默认跳转到历史记录页面
+      wx.navigateTo({
+        url: `/pages/history/history?userId=${memberId}&userName=${encodeURIComponent(memberName)}`
+      })
+    }
   }
 }) 

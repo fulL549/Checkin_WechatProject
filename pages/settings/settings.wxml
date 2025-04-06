@@ -1,5 +1,5 @@
 <view class="container">
-  <navigation-bar title="个人信息设置" back="{{true}}" color="black" background="#FFF" bindback="onBackTap"></navigation-bar>
+  <navigation-bar title="{{isCaptainEdit ? '编辑' + targetUserName + '的信息' : '个人信息设置'}}" back="{{true}}" color="black" background="#FFF" bindback="onBackTap"></navigation-bar>
   
   <scroll-view class="content-scroll" 
                scroll-y="true" 
@@ -9,7 +9,7 @@
                fast-deceleration="true"
                scroll-anchoring="true"
                type="list">
-    <view class="settings-form">
+    <view class="settings-form {{isCaptainEdit ? 'isCaptainEdit' : ''}}">
       <view class="form-group avatar-group">
         <text class="form-label">头像</text>
         <view class="avatar-picker" bindtap="onChooseAvatar">
@@ -21,32 +21,37 @@
       <!-- 1. 基本信息区块 -->
       <view class="section-header primary">
         <text class="section-title">基本信息</text>
-        <text class="section-desc">注册后不可修改</text>
+        <text class="section-desc" wx:if="{{!isCaptainEdit}}">注册后不可修改</text>
+        <text class="section-desc captain-edit" wx:else>队长可修改所有信息</text>
       </view>
       
       <view class="form-group">
         <text class="form-label">姓名</text>
-        <input class="form-input disabled" type="text" value="{{userInfo.nickName}}" disabled="true"/>
+        <input class="form-input {{!isCaptainEdit ? 'disabled' : ''}}" type="text" value="{{userInfo.nickName}}" disabled="{{!isCaptainEdit}}" bindinput="onNickNameInput"/>
       </view>
       
       <view class="form-group">
         <text class="form-label">学号</text>
-        <input class="form-input disabled" type="text" value="{{userInfo.studentId}}" disabled="true"/>
+        <input class="form-input {{!isCaptainEdit ? 'disabled' : ''}}" type="text" value="{{userInfo.studentId}}" disabled="{{!isCaptainEdit}}" bindinput="onStudentIdInput"/>
       </view>
       
       <view class="form-group">
         <text class="form-label">性别</text>
-        <view class="form-input disabled">{{userInfo.gender === 'male' ? '男' : '女'}}</view>
+        <view class="form-input disabled" wx:if="{{!isCaptainEdit}}">{{userInfo.gender === 'male' ? '男' : '女'}}</view>
+        <radio-group wx:else class="radio-group" bindchange="onGenderChange">
+          <label class="radio-label"><radio value="male" checked="{{userInfo.gender === 'male'}}"/>男</label>
+          <label class="radio-label"><radio value="female" checked="{{userInfo.gender === 'female'}}"/>女</label>
+        </radio-group>
       </view>
       
       <view class="form-group">
         <text class="form-label">学院</text>
-        <input class="form-input disabled" type="text" value="{{userInfo.college}}" disabled="true"/>
+        <input class="form-input {{!isCaptainEdit ? 'disabled' : ''}}" type="text" value="{{userInfo.college}}" disabled="{{!isCaptainEdit}}" bindinput="onCollegeInput"/>
       </view>
       
       <view class="form-group">
         <text class="form-label">年级</text>
-        <input class="form-input disabled" type="text" value="{{userInfo.grade}}" disabled="true"/>
+        <input class="form-input {{!isCaptainEdit ? 'disabled' : ''}}" type="text" value="{{userInfo.grade}}" disabled="{{!isCaptainEdit}}" bindinput="onGradeInput"/>
       </view>
       
       <!-- 2. 队员信息区块 -->
@@ -62,12 +67,25 @@
       
       <view class="form-group">
         <text class="form-label">队员状态</text>
-        <view class="form-input disabled">{{userInfo.teamStatus || '未设置'}}</view>
+        <view class="form-input disabled" wx:if="{{!isCaptainEdit}}">{{userInfo.teamStatus || '未设置'}}</view>
+        <picker wx:else bindchange="onTeamStatusChange" value="{{teamStatusIndex}}" range="{{teamStatusOptions}}">
+          <view class="picker-view">{{userInfo.teamStatus || '请选择队员状态'}}</view>
+        </picker>
       </view>
       
       <view class="form-group">
         <text class="form-label">测试水平</text>
-        <view class="form-input disabled">{{userInfo.testLevel || '未记录'}}</view>
+        <!-- 非队长编辑模式，使用 view 显示多行文本 -->
+        <view class="form-value-block" wx:if="{{!isCaptainEdit}}">
+          {{userInfo.testLevel || '未记录'}}
+        </view>
+        <!-- 队长编辑模式，使用 textarea 编辑多行文本 -->
+        <textarea wx:else 
+                  class="form-textarea" 
+                  placeholder="请输入测试水平"
+                  value="{{userInfo.testLevel}}" 
+                  bindinput="onTestLevelInput"
+                  auto-height="true" />
       </view>
       
       <view class="form-group">

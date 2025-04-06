@@ -345,4 +345,23 @@ page {
   margin-bottom: 30rpx;
   padding-bottom: 20rpx;
   border-bottom: 1rpx solid #f0f0f0;
+}
+
+/* 添加用户信息提示样式 */
+.user-info-tip {
+  background-color: #f0f9eb;
+  border: 1px solid #e4f2db;
+  padding: 15rpx 20rpx;
+  margin: 0 30rpx 20rpx;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+  color: #67c23a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-info-tip .username {
+  font-weight: bold;
+  margin: 0 4rpx;
 } 

@@ -170,4 +170,25 @@ page {
 
 .safe-area-bottom {
   height: env(safe-area-inset-bottom);
+}
+
+/* 新增：详细信息样式 */
+.history-details {
+  margin-bottom: 15rpx;
+}
+
+.detail-item {
+  display: flex;
+  margin-bottom: 10rpx;
+  font-size: 26rpx;
+}
+
+.detail-label {
+  color: #999;
+  width: 150rpx;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  color: #333;
 } 

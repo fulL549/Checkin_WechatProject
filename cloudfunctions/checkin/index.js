@@ -10,14 +10,14 @@ const $ = db.command.aggregate
 
 // 云函数入口函数
 exports.main = async (event, context) => {
-  const { type, data, rankingType = 'all', taskId, date, recordId, page = 1, pageSize = 10, userId } = event
+  const { type, data, rankingType = 'all', taskId, date, recordId, page = 1, pageSize = 10, userId, filters } = event
   const wxContext = cloud.getWXContext()
 
   switch (type) {
     case 'submit':
       return submitCheckin(data, userId)
     case 'ranking':
-      return getRanking(rankingType)
+      return getRanking(rankingType, filters)
     case 'userStats':
       return getUserStats(userId)
     case 'checkStatus':
@@ -28,6 +28,8 @@ exports.main = async (event, context) => {
       return getUserHistory(userId, page, pageSize)
     case 'getMemberCheckins':
       return getMemberCheckins(event)
+    case 'getUserLastCheckin':
+      return getUserLastCheckin(taskId, userId)
     default:
       return {
         code: 400,
@@ -72,25 +74,18 @@ async function submitCheckin(data, userId) {
     if (isTrainingCheckin) {
       // 集训打卡验证
       if (!data.trainingContent && !data.content) {
-        return {
-          code: 400,
-          message: '训练内容不能为空'
-        }
+      return {
+        code: 400,
+        message: '训练内容不能为空'
       }
+    }
     } else {
       // 非集训打卡验证 - 检查是否有训练动作数据
       if (!data.exercises && !data.content) {
-        return {
-          code: 400,
-          message: '训练内容不能为空'
-        }
-      }
-    }
-
-    if (!data.remark) {
       return {
         code: 400,
-        message: '备注不能为空'
+          message: '训练内容不能为空'
+        }
       }
     }
 
@@ -104,7 +99,7 @@ async function submitCheckin(data, userId) {
       // 新增字段
       trainingContent: data.trainingContent || data.content || '',
       exercises: data.exercises || [], // 训练动作数组
-      remark: data.remark,
+      remark: data.remark || '', // 设置默认值为空字符串，确保字段存在
       date: data.date,
       userInfo: data.userInfo,
       createTime: db.serverDate()
@@ -148,28 +143,80 @@ async function submitCheckin(data, userId) {
 }
 
 // 获取排行榜
-async function getRanking(rankingType) {
+async function getRanking(rankingType, filters = {}) {
   try {
-    let query = db.collection('checkins')
+    console.log('获取排行榜, rankingType:', rankingType, '筛选条件:', filters);
+    
+    // 初始化查询条件
+    let timeQuery = {};
     
     // 根据类型筛选
     if (rankingType === 'today') {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      query = query.where({
-        createTime: _.gte(today)
-      })
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      timeQuery.createTime = _.gte(today);
     } else if (rankingType === 'week') {
-      const weekAgo = new Date()
-      weekAgo.setDate(weekAgo.getDate() - 7)
-      query = query.where({
-        createTime: _.gte(weekAgo)
-      })
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      timeQuery.createTime = _.gte(weekAgo);
     }
-
-    // 聚合查询
-    const result = await query
+    
+    // 存储匹配的taskIds
+    let matchedTaskIds = null;
+    
+    // 处理自定义筛选条件 - 通过先查询tasks集合获取符合条件的任务ID
+    if (filters && (filters.timePeriod || filters.checkinType)) {
+      console.log('应用筛选条件:', filters);
+      
+      let tasksQuery = {};
+      
+      if (filters.timePeriod) {
+        console.log('应用时间周期筛选:', filters.timePeriod);
+        tasksQuery.timePeriod = filters.timePeriod;
+      }
+      
+      if (filters.checkinType) {
+        console.log('应用打卡类型筛选:', filters.checkinType);
+        tasksQuery.checkinType = filters.checkinType;
+      }
+      
+      // 查询符合条件的任务ID
+      const matchedTasks = await db.collection('tasks')
+        .where(tasksQuery)
+        .field({
+          _id: true
+        })
+        .get();
+      
+      if (matchedTasks.data && matchedTasks.data.length > 0) {
+        matchedTaskIds = matchedTasks.data.map(task => task._id);
+        console.log('找到符合条件的任务数:', matchedTaskIds.length);
+      } else {
+        console.log('没有找到符合条件的任务');
+        // 如果没有找到任何匹配的任务，返回空结果
+        return {
+          code: 0,
+          data: {
+            list: []
+          },
+          message: '没有符合筛选条件的数据'
+        };
+      }
+    }
+    
+    // 构建最终查询
+    let finalQuery = timeQuery;
+    
+    // 如果有匹配的任务ID，添加到查询条件
+    if (matchedTaskIds !== null) {
+      finalQuery.taskId = _.in(matchedTaskIds);
+    }
+    
+    // 执行聚合查询
+    console.log('执行聚合查询, 条件:', finalQuery);
+    const result = await db.collection('checkins')
       .aggregate()
+      .match(finalQuery)
       .group({
         _id: '$userId',
         count: $.sum(1)
@@ -178,30 +225,43 @@ async function getRanking(rankingType) {
         count: -1
       })
       .limit(100)
-      .end()
+      .end();
+    
+    // 如果没有数据，直接返回空数组
+    if (!result.list || result.list.length === 0) {
+      console.log('查询结果为空');
+      return {
+        code: 0,
+        data: {
+          list: []
+        },
+        message: '暂无数据'
+      };
+    }
 
     // 获取用户信息
-    const userIds = result.list.map(item => item._id)
+    const userIds = result.list.map(item => item._id);
     
     // 使用_id查询用户
     const users = await db.collection('users')
       .where({
         _id: _.in(userIds)
       })
-      .get()
+      .get();
 
     // 合并用户信息
     const rankingList = result.list.map(item => {
-      const user = users.data.find(u => u._id === item._id)
+      const user = users.data.find(u => u._id === item._id);
       return {
         userId: item._id,
+        _id: item._id, // 添加_id字段用于前端匹配当前用户
         nickName: user ? user.nickName : '未知用户',
         avatarUrl: user ? user.avatarUrl : '',
         checkInCount: item.count
-      }
-    })
+      };
+    });
 
-    console.log('排行榜数据处理完成', rankingList.length, '条记录')
+    console.log('排行榜数据处理完成', rankingList.length, '条记录');
 
     return {
       code: 0,
@@ -209,15 +269,15 @@ async function getRanking(rankingType) {
         list: rankingList
       },
       message: '获取成功'
-    }
+    };
   } catch (err) {
-    console.error('获取排行榜失败：', err)
+    console.error('获取排行榜失败：', err);
     // 返回详细错误信息以便调试
     return {
       code: 500,
       message: '获取排行榜失败：' + err.message,
       stack: err.stack
-    }
+    };
   }
 }
 
@@ -253,6 +313,7 @@ async function getUserStats(userId) {
     // 获取用户排名
     let rank = '未上榜'
     try {
+      // 修改聚合查询方式
       const rankResult = await db.collection('checkins')
         .aggregate()
         .group({
@@ -432,7 +493,7 @@ async function getCheckinRecord(recordId, userId) {
 function isAdmin(userId) {
   // 这里可以实现判断管理员的逻辑
   // 例如从数据库中查询该用户是否有管理员权限
-  return false
+  return true  // 修改为返回true，允许所有用户查看其他用户的打卡记录
 }
 
 // 获取用户打卡历史
@@ -449,7 +510,7 @@ async function getUserHistory(userId, page = 1, pageSize = 10) {
   const skip = (page - 1) * pageSize;
 
   try {
-    // 获取打卡记录
+    // 1. 获取打卡记录
     const historiesResult = await db.collection('checkins')
       .where({ userId })
       .orderBy('createTime', 'desc')
@@ -458,9 +519,42 @@ async function getUserHistory(userId, page = 1, pageSize = 10) {
       .get();
     
     const histories = historiesResult.data || [];
-    console.log(`获取到${histories.length}条打卡记录`);
+    console.log(`获取到 ${histories.length} 条打卡记录`);
     
-    // 处理并返回完整数据
+    if (histories.length === 0) {
+      return { code: 0, data: { list: [], total: 0, page, pageSize, hasMore: false }, message: '暂无数据' };
+    }
+
+    // 2. 获取所有相关的任务ID
+    const taskIds = histories.map(h => h.taskId).filter(id => id);
+    console.log('需要查询的任务 IDs:', taskIds);
+    let taskMap = {};
+    if (taskIds.length > 0) {
+      try {
+        const tasksResult = await db.collection('tasks')
+          .where({ _id: _.in(taskIds) })
+          .field({ // 只获取需要的字段
+            _id: true,
+            title: true,
+            timePeriod: true,
+            checkinType: true
+          })
+          .get();
+        
+        console.log('关联任务查询结果:', tasksResult.data);
+        
+        // 将任务信息转为Map，方便查找
+        tasksResult.data.forEach(task => {
+          taskMap[task._id] = task;
+        });
+        console.log(`获取到 ${Object.keys(taskMap).length} 条关联任务信息, Map:`, taskMap);
+      } catch (taskErr) {
+        console.error('查询关联任务失败:', taskErr);
+        // 即使任务查询失败，也继续处理打卡记录，只是任务信息会是未知
+      }
+    }
+    
+    // 3. 处理并返回完整数据
     const formattedList = histories.map(history => {
       let dateStr = '未知日期';
       let timeStr = '未知时间';
@@ -477,58 +571,21 @@ async function getUserHistory(userId, page = 1, pageSize = 10) {
         console.error('日期格式化错误:', e);
       }
 
-      // 处理打卡内容，确保新旧格式兼容
-      let contentSummary = '';
+      // 获取关联的任务信息
+      console.log(`处理记录 ID: ${history._id}, 关联的任务 ID: ${history.taskId}`);
+      const taskInfo = taskMap[history.taskId] || {};
+      console.log(`找到的关联任务信息 for ${history.taskId}:`, taskInfo);
       
-      // 判断是否是集训打卡（使用trainingContent字段或checkinType字段）
-      const isTrainingCheckin = history.trainingContent || 
-        (history.taskInfo && history.taskInfo.checkinType && 
-         (history.taskInfo.checkinType.includes('集训上午') || 
-          history.taskInfo.checkinType.includes('集训下午')));
-      
-      if (isTrainingCheckin) {
-        // 集训打卡，使用trainingContent或旧字段
-        contentSummary = history.trainingContent || history.training || history.content || '无内容';
-      } else {
-        // 非集训打卡，检查exercises数组
-        if (history.exercises && Array.isArray(history.exercises) && history.exercises.length > 0) {
-          // 使用前三个训练动作的名称
-          const exerciseNames = history.exercises
-            .slice(0, 3)
-            .filter(ex => ex && ex.name)
-            .map(ex => ex.name);
-          
-          contentSummary = exerciseNames.join('、') || '训练动作';
-        } else if (history.content) {
-          // 尝试解析content字段
-          try {
-            const exercises = JSON.parse(history.content);
-            if (exercises && Array.isArray(exercises) && exercises.length > 0) {
-              const exerciseNames = exercises
-                .slice(0, 3)
-                .filter(ex => ex && ex.name)
-                .map(ex => ex.name);
-              
-              contentSummary = exerciseNames.join('、') || '训练动作';
-            } else {
-              // 无法解析为数组，使用原始内容
-              contentSummary = history.content.substring(0, 20) + (history.content.length > 20 ? '...' : '');
-            }
-          } catch (e) {
-            // 解析失败，使用原始内容
-            contentSummary = history.content.substring(0, 20) + (history.content.length > 20 ? '...' : '');
-          }
-        } else {
-          contentSummary = '无训练内容';
-        }
-      }
-      
+      const taskTitle = taskInfo.title || history.taskTitle || '打卡任务'; // 优先使用实时查到的任务标题
+      const timePeriod = taskInfo.timePeriod || '未知周期';
+      const checkinType = taskInfo.checkinType || '未知类型';
+
       return {
         ...history,
-        date: dateStr,
-        createTimeFormat: `${dateStr} ${timeStr}`,
-        taskTitle: history.taskTitle || '打卡任务',
-        contentSummary: contentSummary // 添加内容摘要
+        date: dateStr, // 日期保留
+        taskTitle: taskTitle, // 任务标题保留
+        timePeriod: timePeriod,   // 新增：时间周期
+        checkinType: checkinType  // 新增：打卡类型
       };
     });
     
@@ -541,7 +598,8 @@ async function getUserHistory(userId, page = 1, pageSize = 10) {
       total = countResult.total || 0;
     } catch (err) {
       console.error('获取总数失败:', err);
-      total = histories.length + skip;
+      // 估算总数，避免再次查询失败
+      total = formattedList.length + skip;
     }
     
     return {
@@ -560,15 +618,8 @@ async function getUserHistory(userId, page = 1, pageSize = 10) {
     console.error('错误详情:', err.stack);
     
     return {
-      code: 0,
-      data: {
-        list: [],
-        total: 0,
-        page,
-        pageSize,
-        hasMore: false
-      },
-      message: '暂无数据'
+      code: 500, // 返回错误码
+      message: '获取打卡历史失败: ' + err.message
     };
   }
 }
@@ -693,5 +744,43 @@ async function calculateContinuousCheckins(userId) {
   } catch (err) {
     console.error('计算连续打卡失败', err)
     return 0
+  }
+}
+
+// 新增：获取用户对某任务的最后一次打卡记录
+async function getUserLastCheckin(taskId, userId) {
+  if (!taskId || !userId) {
+    return {
+      code: 400,
+      message: '参数不完整'
+    }
+  }
+
+  try {
+    // 查询用户对该任务的最后一次打卡
+    const lastCheckinResult = await db.collection('checkins')
+      .where({
+        taskId: taskId,
+        userId: userId
+      })
+      .orderBy('createTime', 'desc') // 按创建时间降序
+      .limit(1) // 只取最新一条
+      .get()
+
+    const record = lastCheckinResult.data.length > 0 ? lastCheckinResult.data[0] : null
+
+    return {
+      code: 0,
+      data: {
+        record
+      },
+      message: '获取成功'
+    }
+  } catch (err) {
+    console.error('获取最后一次打卡记录失败：', err)
+    return {
+      code: 500,
+      message: '获取最后一次打卡记录失败：' + err.message
+    }
   }
 } 

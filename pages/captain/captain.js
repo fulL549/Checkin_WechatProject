@@ -15,6 +15,13 @@ Page({
     
     // 同时检查用户对象中的isCaptain属性
     const userInfo = getApp().globalData.userInfo || wx.getStorageSync('userInfo') || {}
+    
+    console.log('队长状态检查:', {
+      缓存中的队长状态: isCaptain,
+      用户信息中的队长状态: userInfo.isCaptain,
+      用户ID: userInfo._id
+    })
+    
     if (userInfo.isCaptain) {
       isCaptain = true
       // 确保两个地方的状态保持一致
@@ -82,6 +89,13 @@ Page({
   onViewMembersTap: function() {
     wx.navigateTo({
       url: '/pages/members/members'
+    })
+  },
+  
+  // 管理个人信息设置
+  onManageSettingsTap: function() {
+    wx.navigateTo({
+      url: '/pages/members/members?action=settings'
     })
   }
 }) 

@@ -10,6 +10,11 @@
       </view>
     </view>
 
+    <!-- 添加查看用户信息提示 -->
+    <view class="user-info-tip" wx:if="{{isView && viewingUserName}}">
+      <text>当前正在查看 <text class="username">{{viewingUserName}}</text> 的打卡内容</text>
+    </view>
+
     <view class="form">
       <view class="form-item">
         <text class="label">打卡日期</text>
@@ -117,10 +122,10 @@
 
       <!-- 公共部分 -->
       <view class="form-item">
-        <text class="label">备注信息<text class="required">*</text></text>
+        <text class="label">备注信息</text>
         <textarea 
           class="textarea" 
-          placeholder="请输入备注信息" 
+          placeholder="请输入备注信息（选填）" 
           value="{{form.remark}}"
           bindinput="onRemarkInput"
           disabled="{{isView}}"

@@ -20,8 +20,17 @@ const cloud = {
               reject(new Error(res.result.message || `错误码: ${res.result.code}`));
               return;
             }
-            // 返回数据对象
-            resolve(res.result.data);
+            
+            // 记录结果到控制台，方便调试
+            console.log(`云函数 ${name} 返回结果:`, res.result);
+            
+            // 返回数据对象，确保能获取到结果的data字段
+            if (res.result.data !== undefined) {
+              resolve(res.result.data);
+            } else {
+              // 如果没有data字段，但有其它内容，直接返回result
+              resolve(res.result);
+            }
           } else {
             console.warn(`云函数 ${name} 返回空结果`);
             resolve(null);
@@ -162,14 +171,37 @@ const cloud = {
     getTimePeriods: function() {
       return module.exports.callFunction('task', {
         type: 'getTimePeriods'
-      }, 1);
+      }, 1).then(res => {
+        // 处理返回的对象格式
+        if (res && typeof res === 'object' && (res.WEEKS || res.TRAINING)) {
+          console.log('返回的时间周期数据:', res);
+          return res; // 直接返回对象格式，让页面处理
+        } else {
+          console.warn('时间周期数据格式不正确:', res);
+          // 如果格式不对，返回默认格式
+          return {
+            WEEKS: ['第1周', '第2周', '第3周', '第4周', '第5周', '第6周', '第7周', '第8周', '第9周', '第10周', 
+                  '第11周', '第12周', '第13周', '第14周', '第15周', '第16周', '第17周', '第18周'],
+            TRAINING: ['寒训', '暑训']
+          };
+        }
+      });
     },
     
     // 获取打卡类型选项
     getCheckinTypes: function() {
       return module.exports.callFunction('task', {
         type: 'getCheckinTypes'
-      }, 1);
+      }, 1).then(res => {
+        // 处理返回的数组格式
+        if (res && Array.isArray(res)) {
+          console.log('返回的打卡类型数据:', res);
+          return res;
+        } else {
+          console.warn('打卡类型数据格式不正确:', res);
+          return ['非集训', '集训上午', '集训下午']; // 如果格式不对，返回默认值
+        }
+      });
     }
   },
 
@@ -194,10 +226,11 @@ const cloud = {
     },
 
     // 获取排行榜
-    getRanking: function(type = 'all') {
+    getRanking: function(type = 'all', filters = {}) {
       return module.exports.callFunction('checkin', {
         type: 'ranking',
-        rankingType: type
+        rankingType: type,
+        filters: filters
       }, 1);
     },
 
@@ -223,7 +256,17 @@ const cloud = {
     
     // 获取打卡记录详情
     getCheckinDetail: function(recordId) {
-      const userId = getApp().globalData.userInfo._id;
+      const userId = getApp().globalData.userInfo ? getApp().globalData.userInfo._id : '';
+      
+      // 如果用户未登录，显示提示
+      if (!userId) {
+        wx.showToast({
+          title: '请先登录后查看',
+          icon: 'none'
+        });
+        return Promise.reject({ message: '用户未登录' });
+      }
+      
       return module.exports.callFunction('checkin', {
         type: 'getRecord',
         recordId,

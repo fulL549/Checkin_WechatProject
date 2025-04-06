@@ -58,6 +58,8 @@ exports.main = async (event, context) => {
         return await verifyCaptain(event)
       case 'getUserById':
         return await getUserById(event)
+      case 'checkCaptainStatus':
+        return await checkCaptainStatus(event)
       default:
         return {
           code: 404,
@@ -226,6 +228,24 @@ async function getUser(userId) {
       }
     } catch (err) {
       console.log('查询用户失败', err)
+      
+      // 尝试使用userId字段查询
+      try {
+        const userQuery = await db.collection('users').where({
+          userId: parseInt(userId)
+        }).get()
+        
+        if (userQuery.data.length > 0) {
+          return {
+            code: 0,
+            data: userQuery.data[0],
+            message: '获取用户信息成功'
+          }
+        }
+      } catch (innerErr) {
+        console.log('使用userId字段查询用户失败', innerErr)
+      }
+      
       return {
         code: 404,
         message: '用户不存在'
@@ -248,10 +268,11 @@ async function getUser(userId) {
 // 用户信息更新
 async function updateUserInfo(event) {
   try {
-    console.log('更新用户信息:', event.data)
+    console.log('更新用户信息:', event.data, '队长编辑模式:', event.isCaptainEdit)
     
     // 获取更新数据
     const userData = event.data
+    const isCaptainEdit = event.isCaptainEdit || false
     
     // 验证关键字段存在
     if (!userData._id) {
@@ -282,10 +303,66 @@ async function updateUserInfo(event) {
         message: '用户信息不存在'
       }
     }
+
+    // 如果是队长编辑模式，需要验证调用者是否为队长
+    if (isCaptainEdit) {
+      // 获取当前登录用户的ID（从event中获取）
+      const callerId = event.callerId
+      
+      if (!callerId) {
+        return {
+          code: 403,
+          message: '无法验证队长身份，请重新登录'
+        }
+      }
+      
+      console.log('验证队长权限，callerId:', callerId)
+      
+      // 获取调用者信息
+      let callerUser
+      try {
+        // 先尝试使用_id直接查询
+        callerUser = await db.collection('users').doc(callerId).get()
+      } catch (err) {
+        console.error('查询用户失败:', err)
+        return {
+          code: 403,
+          message: '无法验证队长身份，用户不存在'
+        }
+      }
+      
+      // 验证调用者是否为队长
+      if (!callerUser.data || !callerUser.data.isCaptain) {
+        return {
+          code: 403,
+          message: '无权进行此操作，仅队长可编辑其他队员信息'
+        }
+      }
+      
+      console.log('队长编辑模式验证通过')
+    }
     
-    // 准备更新数据，提取需要更新的部分
-    const updateData = {
-      // 允许更新的字段
+    // 准备更新数据
+    // 常规模式下只允许更新有限的字段
+    const updateData = isCaptainEdit ? {
+      // 队长模式下允许更新所有字段
+      avatarUrl: userData.avatarUrl,
+      nickName: userData.nickName,
+      studentId: userData.studentId,
+      gender: userData.gender,
+      college: userData.college,
+      grade: userData.grade,
+      teamStatus: userData.teamStatus,
+      testLevel: userData.testLevel,
+      phone: userData.phone,
+      birthday: userData.birthday,
+      height: userData.height,
+      weight: userData.weight,
+      paddleSide: userData.paddleSide,
+      joinDate: userData.joinDate,
+      updateTime: db.serverDate()
+    } : {
+      // 常规模式下的有限字段
       avatarUrl: userData.avatarUrl,
       phone: userData.phone,
       birthday: userData.birthday,
@@ -487,6 +564,55 @@ async function loginUser(event) {
     return {
       code: 500,
       message: '登录失败：' + err.message
+    }
+  }
+}
+
+// 检查用户的队长状态
+async function checkCaptainStatus(event) {
+  try {
+    const { userId } = event
+    
+    if (!userId) {
+      return {
+        code: 400,
+        message: '用户ID不能为空'
+      }
+    }
+    
+    // 查询用户
+    let user
+    try {
+      user = await db.collection('users').doc(userId).get()
+    } catch (err) {
+      console.error('查询用户失败:', err)
+      return {
+        code: 404,
+        message: '用户不存在'
+      }
+    }
+    
+    if (!user || !user.data) {
+      return {
+        code: 404,
+        message: '用户不存在'
+      }
+    }
+    
+    // 返回用户的队长状态
+    return {
+      code: 0,
+      data: {
+        userId: userId,
+        isCaptain: user.data.isCaptain || false
+      },
+      message: '获取队长状态成功'
+    }
+  } catch (err) {
+    console.error('检查队长状态失败:', err)
+    return {
+      code: 500,
+      message: '检查队长状态失败: ' + err.message
     }
   }
 } 

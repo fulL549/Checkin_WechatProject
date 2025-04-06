@@ -4,7 +4,7 @@
   <scroll-view class="content-scroll" scroll-y type="list" enable-pull-down-refresh="{{true}}" refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onPullDownRefresh">
     <!-- 标题 -->
     <view class="header">
-      <text class="title">我的打卡记录</text>
+      <text class="title">{{isViewingOther ? viewUserName + '的' : '我的'}}打卡记录</text>
       <text class="subtitle">累计打卡 {{totalCount}} 次</text>
     </view>
     
@@ -17,14 +17,32 @@
             <text class="history-task-name">{{item.taskTitle || '未知任务'}}</text>
           </view>
           
+          <!-- 新增：显示时间周期和打卡类型 -->
+          <view class="history-details">
+            <view class="detail-item">
+              <text class="detail-label">时间周期:</text>
+              <text class="detail-value">{{item.timePeriod || '未知'}}</text>
+            </view>
+            <view class="detail-item">
+              <text class="detail-label">打卡类型:</text>
+              <text class="detail-value">{{item.checkinType || '未知'}}</text>
+            </view>
+          </view>
+          
+          <!-- 移除：打卡内容 -->
+          <!-- 
           <view class="history-content">
             <text class="content-label">打卡内容：</text>
             <text class="content-text">{{item.content}}</text>
-          </view>
+          </view> 
+          -->
           
+          <!-- 移除：右下角时间显示 -->
+          <!-- 
           <view class="history-meta">
             <text class="history-time">{{item.createTimeFormat}}</text>
-          </view>
+          </view> 
+          -->
         </view>
       </block>
       

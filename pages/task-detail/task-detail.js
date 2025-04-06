@@ -9,6 +9,7 @@ Page({
     isCreator: false,
     hasJoined: false,
     hasCheckedIn: false,
+    isExpired: false,
     checkinRecord: null,
     debugInfo: ''
   },
@@ -90,22 +91,20 @@ Page({
     this.setData({ userInfo })
   },
 
-  // 加载任务详情 - 尝试直接使用云数据库查询
+  // 加载任务详情
   loadTaskDetail: function(taskId) {
     wx.showLoading({
       title: '加载中...'
     })
     
-    // 记录调试信息
     console.log('正在加载任务详情，ID:', taskId)
     
-    // 尝试使用直接调用的方式
     wx.cloud.callFunction({
       name: 'task',
       data: {
         type: 'detail',
         taskId: taskId,
-        includeParticipantDetails: true // 设置标志，请求包含参与者详细信息
+        includeParticipantDetails: true 
       }
     })
     .then(res => {
@@ -115,13 +114,9 @@ Page({
         const task = res.result.data
         
         // 添加字段兼容性处理
-        if (!task.startDateTime && task.startTime) {
-          task.startDateTime = task.startTime;
-        }
-        
-        if (!task.endDateTime && task.endTime) {
-          task.endDateTime = task.endTime;
-        }
+        task.startDateTime = task.startDateTime || task.startTime || ''
+        task.endDateTime = task.endDateTime || task.endTime || ''
+        task.deadline = task.deadline || task.endDateTime // 使用endDateTime作为deadline
         
         const userInfo = this.data.userInfo
         const isCreator = userInfo && userInfo._id === task.createdBy
@@ -129,24 +124,45 @@ Page({
         // 判断用户是否已参与任务
         let hasJoined = false;
         if (userInfo && userInfo._id) {
-          // 如果参与者是详细信息的数组，需要检查_id字段
-          if (task.participants && task.participants.length > 0 && task.participants[0].hasOwnProperty('_id')) {
-            hasJoined = task.participants.some(participant => participant._id === userInfo._id);
+          if (task.participants && task.participants.length > 0 && typeof task.participants[0] === 'object') {
+            hasJoined = task.participants.some(p => p._id === userInfo._id);
           } else {
-            // 如果仍是简单ID数组
-            hasJoined = task.participants && task.participants.some(participant => participant === userInfo._id);
+            hasJoined = task.participants && task.participants.includes(userInfo._id);
           }
         }
         
-        // 格式化时间
+        // 格式化创建时间
         if (task.createTime) {
           const date = new Date(task.createTime)
           task.createTimeFormatted = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
         }
         
-        // 检查截止日期
-        const isExpired = task.deadline && new Date(task.deadline) < new Date()
-        
+        // 检查任务是否已过期 (使用 endDateTime 或 deadline)
+        let isExpired = false;
+        const now = new Date();
+        if (task.endDateTime) {
+          try {
+            isExpired = new Date(task.endDateTime.replace(/-/g, '/')) < now; // 兼容ios日期格式
+          } catch (e) {
+            console.error('解析 endDateTime 出错:', e);
+            // 尝试使用 deadline
+            if (task.deadline) {
+              try {
+                isExpired = new Date(task.deadline.replace(/-/g, '/')) < now;
+              } catch (e2) {
+                console.error('解析 deadline 出错:', e2);
+              }
+            }
+          }
+        } else if (task.deadline) {
+           try {
+             isExpired = new Date(task.deadline.replace(/-/g, '/')) < now;
+           } catch (e) {
+             console.error('解析 deadline 出错:', e);
+           }
+        }
+        console.log(`任务过期状态: ${isExpired}, 截止时间: ${task.endDateTime || task.deadline}`);
+
         this.setData({
           task,
           loading: false,
@@ -157,190 +173,176 @@ Page({
         })
 
         // 如果已登录且参与了任务，检查打卡状态
-        if (hasJoined && userInfo && userInfo._id) {
+        if (userInfo && userInfo._id) { 
           this.checkCheckinStatus(taskId)
         }
       } else {
-        // 处理错误
         const errorMsg = (res.result && res.result.message) || '获取任务详情失败'
         console.error('云函数返回错误:', errorMsg)
-        
-        this.setData({
-          loading: false,
-          debugInfo: '云函数返回错误: ' + errorMsg
-        })
-        
-        wx.showToast({
-          title: errorMsg,
-          icon: 'none'
-        })
+        this.setData({ loading: false, debugInfo: '云函数返回错误: ' + errorMsg })
+        wx.showToast({ title: errorMsg, icon: 'none' })
       }
-      
       wx.hideLoading()
     })
     .catch(err => {
       console.error('调用云函数失败:', err)
-      
-      this.setData({
-        loading: false,
-        debugInfo: '调用云函数失败: ' + (err.message || JSON.stringify(err))
-      })
-      
+      this.setData({ loading: false, debugInfo: '调用云函数失败: ' + (err.message || JSON.stringify(err)) })
       wx.hideLoading()
-      wx.showToast({
-        title: err.message || '获取任务详情失败',
-        icon: 'none'
-      })
+      wx.showToast({ title: err.message || '获取任务详情失败', icon: 'none' })
     })
   },
 
-  // 检查用户是否已打卡
+  // 检查用户是否已打卡 (只更新状态，不影响按钮逻辑判断)
   checkCheckinStatus: function(taskId) {
-    if (!this.data.userInfo || !this.data.userInfo._id) {
-      return // 未登录不检查
-    }
+    if (!this.data.userInfo || !this.data.userInfo._id) return
 
     const today = new Date()
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, '0')
-    const day = String(today.getDate()).padStart(2, '0')
-    const dateStr = `${year}-${month}-${day}`
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
     wx.cloud.callFunction({
       name: 'checkin',
-      data: {
-        type: 'checkStatus',
-        taskId: taskId,
-        date: dateStr,
-        userId: this.data.userInfo._id
-      }
+      data: { type: 'checkStatus', taskId, date: dateStr, userId: this.data.userInfo._id }
     })
     .then(res => {
-      console.log('检查打卡状态返回:', res)
-      
       if (res.result && res.result.code === 0) {
-        const hasCheckedIn = res.result.data.hasCheckedIn
-        const checkinRecord = res.result.data.record || null
-        
         this.setData({
-          hasCheckedIn,
-          checkinRecord
+          hasCheckedIn: res.result.data.hasCheckedIn,
+          checkinRecord: res.result.data.record || null
         })
+      } else {
+         // 检查失败或未打卡，确保状态正确
+         this.setData({ hasCheckedIn: false, checkinRecord: null })
       }
     })
     .catch(err => {
       console.error('检查打卡状态失败:', err)
+      this.setData({ hasCheckedIn: false, checkinRecord: null }) // 出错时也认为未打卡
     })
   },
 
-  // 参与任务
+  // 参与任务并直接跳转到打卡页
   joinTask: function() {
-    // 检查登录状态
     if (!this.data.userInfo || !this.data.userInfo._id) {
-      wx.showToast({
-        title: '请先登录',
-        icon: 'none'
-      })
+      wx.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+    if (this.data.isExpired) {
+      wx.showToast({ title: '任务已截止', icon: 'none' })
       return
     }
     
-    const taskId = this.data.taskId
-    
+    // 显示加载提示
     wx.showLoading({
-      title: '处理中...'
+      title: '处理中...',
+      mask: true
     })
-    
-    // 直接调用云函数
+
+    // 先调用云函数将用户加入任务
     wx.cloud.callFunction({
       name: 'task',
       data: {
         type: 'join',
-        taskId: taskId,
+        taskId: this.data.taskId,
         userId: this.data.userInfo._id
       }
-    })
-    .then(res => {
+    }).then(res => {
       wx.hideLoading()
-      
       if (res.result && res.result.code === 0) {
-        // 更新本地状态
-        const userTasks = wx.getStorageSync('userTasks') || {}
-        userTasks[taskId] = true
-        wx.setStorageSync('userTasks', userTasks)
-        
-        // 获取返回的用户信息
-        const userInfo = res.result.data && res.result.data.userInfo || {
-          _id: this.data.userInfo._id,
-          avatarUrl: this.data.userInfo.avatarUrl || '/images/default-avatar.png',
-          nickName: this.data.userInfo.nickName || '未知用户'
-        };
-        
-        // 判断当前参与者列表格式
-        let updatedParticipants = [];
-        if (this.data.task.participants && this.data.task.participants.length > 0 && 
-            typeof this.data.task.participants[0] === 'object') {
-          // 如果是对象数组，添加新用户对象
-          updatedParticipants = [...this.data.task.participants, userInfo];
-        } else {
-          // 如果是ID数组，则获取当前用户的详细信息
-          const currentParticipants = this.data.task.participants || [];
-          // 先添加用户ID到列表中
-          updatedParticipants = [...currentParticipants, this.data.userInfo._id];
-          
-          // 重新加载详细信息
-          this.loadTaskDetail(this.data.taskId);
-        }
-        
-        this.setData({
-          hasJoined: true,
-          'task.participants': updatedParticipants
-        })
-        
-        wx.showToast({
-          title: '参与成功',
-          icon: 'success'
-        })
+        console.log('成功加入任务');
+        // 更新参与状态
+        this.setData({ hasJoined: true });
+        // 设置全局任务数据变更标记，以便列表页等刷新
+        const app = getApp();
+        app.globalData.taskDataChanged = true;
+        app.globalData.lastTaskId = this.data.taskId;
+
+        // 加入成功后，直接导航到打卡页面
+        wx.navigateTo({
+          url: `/pages/checkin/checkin?id=${this.data.taskId}`,
+          fail: (err) => {
+            console.error('跳转到打卡页失败:', err);
+            wx.showToast({ title: '页面跳转失败', icon: 'none' });
+          }
+        });
       } else {
-        wx.showToast({
-          title: (res.result && res.result.message) || '参与失败',
-          icon: 'none'
-        })
+        wx.showToast({ title: res.result?.message || '参与任务失败', icon: 'none' });
       }
-    })
-    .catch(err => {
+    }).catch(err => {
       wx.hideLoading()
-      wx.showToast({
-        title: err.message || '参与失败',
-        icon: 'none'
-      })
-    })
+      console.error('参与任务云函数调用失败:', err);
+      wx.showToast({ title: '参与任务失败，请重试', icon: 'none' });
+    });
   },
 
-  // 导航到打卡页面
-  navigateToCheckin: function() {
-    if (!this.data.hasJoined) {
-      wx.showToast({
-        title: '请先参与任务',
-        icon: 'none'
-      })
+  // 新增：查看打卡详情
+  viewCheckin: function() {
+    if (!this.data.hasCheckedIn || !this.data.checkinRecord) {
+      wx.showToast({ title: '您尚未打卡', icon: 'none' })
       return
     }
-    
-    // 如果已经打卡过，则查看打卡详情
-    if (this.data.hasCheckedIn && this.data.checkinRecord) {
-      wx.navigateTo({
-        url: `/pages/checkin/checkin?id=${this.data.taskId}&view=1&recordId=${this.data.checkinRecord._id}`
-      })
-    } else {
-      // 否则去打卡
-      wx.navigateTo({
-        url: `/pages/checkin/checkin?id=${this.data.taskId}`
-      })
-    }
+    wx.navigateTo({
+      url: `/pages/checkin/checkin?id=${this.data.taskId}&view=1&recordId=${this.data.checkinRecord._id}`
+    })
   },
 
   // 返回列表
   goBack: function() {
     wx.navigateBack()
+  },
+  
+  // 查看参与者打卡内容
+  viewParticipantCheckin: function(e) {
+    const userId = e.currentTarget.dataset.userId;
+    const userName = e.currentTarget.dataset.userName;
+    const taskId = this.data.taskId; // 获取当前任务ID
+    
+    if (!userId || !taskId) {
+      wx.showToast({
+        title: '信息不完整',
+        icon: 'none'
+      });
+      return;
+    }
+    
+    wx.showLoading({
+      title: '查询中...'
+    });
+    
+    // 调用云函数获取该用户的最后一次打卡记录
+    wx.cloud.callFunction({
+      name: 'checkin',
+      data: {
+        type: 'getUserLastCheckin', // 使用新的操作类型
+        taskId: taskId,
+        userId: userId
+      }
+    }).then(res => {
+      wx.hideLoading();
+      console.log('获取用户最后一次打卡记录:', res);
+
+      if (res.result && res.result.code === 0 && res.result.data.record) {
+        // 如果找到了记录，跳转到打卡详情页 (查看模式)
+        wx.navigateTo({
+          url: `/pages/checkin/checkin?id=${taskId}&view=1&recordId=${res.result.data.record._id}`
+        });
+      } else {
+        // 如果没有找到记录，提示用户
+        wx.showToast({
+          title: userName + ' 尚未打卡此任务',
+          icon: 'none'
+        });
+      }
+    }).catch(err => {
+      wx.hideLoading();
+      console.error('查询用户打卡记录失败:', err);
+      wx.showToast({
+        title: '查询失败，请重试',
+        icon: 'none'
+      });
+    });
+  },
+
+  onShareAppMessage: function () {
+    // ... existing code ...
   }
 }) 

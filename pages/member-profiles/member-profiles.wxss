@@ -1,0 +1,132 @@
+page {
+  background-color: #f5f5f5;
+  height: 100vh;
+}
+
+.container {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-scroll {
+  flex: 1;
+  height: calc(100vh - 44px);
+  padding: 20rpx;
+}
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.member-item {
+  background-color: #fff;
+  border-radius: 12rpx;
+  padding: 25rpx;
+  padding-left: 35rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  position: relative;
+  border-left: 10rpx solid transparent;
+  transition: border-left-color 0.3s ease;
+}
+
+.member-item.status-active {
+  border-left-color: #1aad19;
+}
+
+.member-item.status-retired {
+  border-left-color: #b0b0b0;
+}
+
+.member-item.status-left {
+  border-left-color: #fa5151;
+}
+
+.member-avatar {
+  width: 90rpx;
+  height: 90rpx;
+  border-radius: 50%;
+  margin-right: 25rpx;
+  flex-shrink: 0;
+}
+
+.member-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.member-name {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+}
+
+.label {
+  font-size: 24rpx;
+  color: #999;
+  width: 80rpx;
+}
+
+.value {
+  font-size: 24rpx;
+  color: #555;
+  flex: 1;
+}
+
+.status-text {
+  position: absolute;
+  top: 20rpx;
+  right: 25rpx;
+  font-size: 22rpx;
+  font-weight: bold;
+  padding: 4rpx 12rpx;
+  border-radius: 16rpx;
+}
+
+.status-text.status-text-active {
+  color: #1aad19;
+}
+
+.status-text.status-text-retired {
+  color: #888;
+}
+
+.status-text.status-text-left {
+  color: #fa5151;
+}
+
+.empty-state,
+.loading-state {
+  text-align: center;
+  color: #999;
+  padding: 60rpx 0;
+  font-size: 28rpx;
+}
+
+.safe-area-bottom {
+  height: env(safe-area-inset-bottom);
+}
+
+/* 底部提示样式 */
+.end-state {
+  text-align: center;
+  padding: 30rpx 0;
+}
+
+.end-text {
+  font-size: 26rpx;
+  color: #999;
+}

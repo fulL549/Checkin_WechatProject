@@ -348,9 +348,9 @@ Page({
 
   // 队员档案 - 新增功能（待开发）
   onTeamMemberProfileTap: function() {
-    wx.showToast({
-      title: '功能开发中',
-      icon: 'none'
+    console.log('onTeamMemberProfileTap function triggered');
+    wx.navigateTo({
+      url: '/pages/member-profiles/member-profiles'
     })
   },
 
@@ -360,5 +360,5 @@ Page({
       title: '功能开发中',
       icon: 'none'
     })
-  },
+  }
 }); 

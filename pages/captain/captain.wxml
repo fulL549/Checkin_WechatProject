@@ -22,6 +22,11 @@
         <text class="action-text">查看用户打卡</text>
         <text class="action-arrow">></text>
       </view>
+      <view class="action-item" bindtap="onManageSettingsTap">
+        <text class="action-text">管理个人信息设置</text>
+        <text class="sub-text">查看和修改队员信息</text>
+        <text class="action-arrow">></text>
+      </view>
     </view>
     
     <!-- 添加底部安全区域 -->

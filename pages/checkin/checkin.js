@@ -23,7 +23,9 @@ Page({
     isView: false,
     isTrainingCheckin: false, // 是否为集训打卡
     userInfo: null,
-    loading: false
+    loading: false,
+    isJoining: false, // 添加是否参与任务标记
+    viewingUserName: '' // 记录正在查看的用户名
   },
 
   // 处理导航栏返回按钮点击
@@ -48,12 +50,23 @@ Page({
     const taskId = options.id || ''
     const recordId = options.recordId || ''
     const isView = options.mode === 'view' || options.view === '1'
+    const isJoining = options.join === '1' // 添加是否参与任务标记
+    const userName = options.userName ? decodeURIComponent(options.userName) : '' // 查看特定用户的打卡
     
     this.setData({
       taskId,
       recordId,
-      isView
+      isView,
+      isJoining,
+      viewingUserName: userName // 记录正在查看的用户名
     })
+    
+    // 更新导航栏标题，如果有用户名则显示
+    if (isView && userName) {
+      wx.setNavigationBarTitle({
+        title: `${userName}的打卡详情`
+      })
+    }
     
     // 设置当前日期
     this.setCurrentDate()
@@ -249,13 +262,13 @@ Page({
       formData.date = data.date || this.data.form.date
       formData.remark = data.remark || ''
       
-      // 处理图片URL
-      if (data.imageUrl) {
+      // 处理图片URL - 优先使用 fileID 获取临时链接
+      if (data.fileID) {
+        formData.fileID = data.fileID // 保存fileID，供后续使用
+        this.refreshImageUrl(data.fileID) // 异步获取临时链接并更新imageUrl
+      } else if (data.imageUrl) {
+        // 兼容旧数据可能只存了 imageUrl 的情况
         formData.imageUrl = data.imageUrl
-      } else if (data.fileID) {
-        formData.imageUrl = data.fileID
-        // 如果有fileID但没有imageUrl或imageUrl已过期，重新获取临时链接
-        this.refreshImageUrl(data.fileID)
       }
       
       // 处理打卡内容
@@ -348,10 +361,25 @@ Page({
       .catch(err => {
         console.error('获取打卡记录失败:', err)
         wx.hideLoading()
+        
+        // 显示更详细的错误信息
+        let errMsg = '加载记录失败';
+        if (err.errCode === 403) {
+          errMsg = '无权限查看该记录';
+        } else if (err.message) {
+          errMsg = `加载失败: ${err.message}`;
+        }
+        
         wx.showToast({
-          title: '加载记录失败',
-          icon: 'none'
+          title: errMsg,
+          icon: 'none',
+          duration: 3000
         })
+        
+        // 1.5秒后返回上一页
+        setTimeout(() => {
+          wx.navigateBack();
+        }, 1500);
       })
   },
 
@@ -553,23 +581,9 @@ Page({
         filePath,
         success: res => {
           console.log('图片上传成功:', res)
-          const fileID = res.fileID
-          
-          // 获取临时访问链接
-          wx.cloud.getTempFileURL({
-            fileList: [fileID],
-            success: res => {
-              const tempFileURL = res.fileList[0].tempFileURL
-              wx.hideLoading()
-              resolve({ fileID, imageUrl: tempFileURL })
-            },
-            fail: err => {
-              console.error('获取图片链接失败:', err)
-              wx.hideLoading()
-              // 即使获取临时链接失败，也返回fileID
-              resolve({ fileID, imageUrl: fileID })
-            }
-          })
+          wx.hideLoading()
+          // 只返回 fileID
+          resolve(res.fileID)
         },
         fail: err => {
           console.error('图片上传失败:', err)
@@ -630,15 +644,6 @@ Page({
       }
     }
     
-    // 备注必填
-    if (!this.data.form.remark.trim()) {
-      wx.showToast({
-        title: '请填写备注信息',
-        icon: 'none'
-      })
-      return
-    }
-    
     this.setData({ loading: true })
     wx.showLoading({ title: '提交中...' })
     
@@ -659,8 +664,10 @@ Page({
         
         // 添加图片信息（如果上传成功）
         if (imageResult) {
-          checkinData.fileID = imageResult.fileID
-          checkinData.imageUrl = imageResult.imageUrl
+          // 只保存 fileID
+          checkinData.fileID = imageResult
+          // 不再保存 imageUrl
+          // checkinData.imageUrl = imageResult.imageUrl
         }
         
         // 根据打卡类型设置不同的内容
@@ -694,8 +701,39 @@ Page({
         return cloud.checkin.submitCheckin(checkinData)
       })
       .then(() => {
+        // 如果是首次参与任务，需要调用joinTask云函数
+        if (this.data.isJoining) {
+          return wx.cloud.callFunction({
+            name: 'task',
+            data: {
+              type: 'join',
+              taskId: this.data.taskId,
+              userId: this.data.userInfo._id
+            }
+          })
+          .then(res => {
+            console.log('参与任务成功:', res)
+            // 不管成功失败都返回，因为打卡已经成功了
+            return Promise.resolve()
+          })
+          .catch(err => {
+            console.error('参与任务失败:', err)
+            // 不管成功失败都返回，因为打卡已经成功了
+            return Promise.resolve()
+          })
+        }
+        return Promise.resolve()
+      })
+      .then(() => {
         wx.hideLoading()
         this.setData({ loading: false })
+        
+        // 更新本地任务参与状态
+        if (this.data.isJoining) {
+          const userTasks = wx.getStorageSync('userTasks') || {}
+          userTasks[this.data.taskId] = true
+          wx.setStorageSync('userTasks', userTasks)
+        }
         
         wx.showToast({
           title: '打卡成功',
