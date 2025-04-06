@@ -13,8 +13,8 @@ Page({
     teamStatusIndex: 0,
     newPassword: '',
     confirmPassword: '',
-    showPassword: false,
-    showConfirmPassword: false,
+    showPassword: true, // 始终显示密码
+    showConfirmPassword: true, // 始终显示确认密码
     savingToCloud: false,
     scrollTop: 0 // 新增滚动位置记录
   },
@@ -282,18 +282,6 @@ Page({
   },
 
   // 密码相关函数
-  togglePasswordVisibility: function() {
-    this.setData({ 
-      showPassword: !this.data.showPassword 
-    })
-  },
-  
-  toggleConfirmPasswordVisibility: function() {
-    this.setData({ 
-      showConfirmPassword: !this.data.showConfirmPassword 
-    })
-  },
-  
   onPasswordInput: function(e) {
     this.setData({ 
       newPassword: e.detail.value 
@@ -499,8 +487,8 @@ Page({
         this.setData({
           newPassword: '',
           confirmPassword: '',
-          showPassword: false,
-          showConfirmPassword: false
+          showPassword: true,
+          showConfirmPassword: true
         })
         
         wx.showToast({

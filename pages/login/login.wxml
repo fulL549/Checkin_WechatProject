@@ -12,7 +12,10 @@
     
     <view class="form-item">
       <text class="label">密码</text>
-      <input class="input" type="password" value="{{form.password}}" bindinput="onPasswordInput" placeholder="请输入密码" maxlength="20" />
+      <view class="password-container" bindtap="onPasswordContainerTap">
+        <input class="input password-input" type="text" value="{{passwordDisplay}}" disabled="true" placeholder="请输入密码" />
+        <input class="hidden-input" type="text" value="{{form.password}}" bindinput="onPasswordInput" focus="{{passwordFocus}}" maxlength="20" />
+      </view>
     </view>
     
     <button class="submit-btn" type="primary" bindtap="onSubmit" loading="{{loading}}" disabled="{{loading}}">

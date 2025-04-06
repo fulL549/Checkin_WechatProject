@@ -5,7 +5,8 @@ Page({
     loading: true,
     taskList: [],
     userInfo: null,
-    refreshing: false
+    refreshing: false,
+    scrollTop: 0 // 添加滚动位置记录
   },
   
   onLoad: function() {
@@ -54,6 +55,26 @@ Page({
     wx.navigateBack({
       delta: 1
     })
+  },
+  
+  // 监听滚动事件
+  onScroll: function(e) {
+    // 记录滚动位置，以便需要时恢复
+    this.setData({
+      scrollTop: e.detail.scrollTop
+    });
+  },
+  
+  // 处理滚动到顶部
+  onScrollToUpper: function() {
+    console.log('滚动到顶部');
+    // 可以在这里添加刷新逻辑或其他顶部触发的行为
+  },
+  
+  // 处理滚动到底部
+  onReachBottom: function() {
+    console.log('滚动到底部');
+    // 可以在这里添加加载更多的逻辑
   },
   
   // 加载用户信息

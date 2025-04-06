@@ -1,6 +1,12 @@
 <navigation-bar title="队员档案" back="{{true}}" color="black" background="#FFF"></navigation-bar>
 <view class="container">
   <scroll-view class="content-scroll" scroll-y="true" refresher-enabled="{{true}}" refresher-triggered="{{refreshing}}" bindrefresherrefresh="onRefresh">
+    <!-- 添加队员统计信息区域 -->
+    <view class="stats-container">
+      <view class="stats-count">目前在训{{activeCount}}人</view>
+      <view class="stats-note">队员档案自2025年创建小程序开始统计</view>
+    </view>
+    
     <view class="member-list">
       <block wx:if="{{members.length > 0}}">
         <view class="member-item {{item.teamStatus === '在训' ? 'status-active' : (item.teamStatus === '退役' ? 'status-retired' : (item.teamStatus === '退队' ? 'status-left' : ''))}}" wx:for="{{members}}" wx:key="_id" bindtap="onMemberTap" data-id="{{item._id}}">
@@ -38,9 +44,9 @@
       </block>
     </view>
     
-    <!-- 增加底部提示 -->
-    <view class="end-state" wx:if="{{!loading && !hasMore && members.length > 0}}">
-      <text class="end-text">已经到底了~</text>
+    <!-- 修改底部提示 - 让它在所有情况下都显示 -->
+    <view class="end-state">
+      <text class="end-text">{{members.length > 0 ? '已经到底了~' : '暂无更多队员信息'}}</text>
     </view>
     
     <view class="safe-area-bottom"></view>

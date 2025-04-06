@@ -48,29 +48,10 @@ async function getTeamInfo(event) {
   // 使用userId代替openid
 }
 
-// 获取团队所有成员（仅队长可调用）
+// 获取团队所有成员（所有人都可以调用）
 async function getTeamMembers(userId) {
   try {
     console.log('getTeamMembers called with userId:', userId)
-    
-    // 如果提供了userId，验证用户是否是队长
-    if (userId) {
-      try {
-        const user = await db.collection('users').doc(userId).get()
-        if (!user.data || !user.data.isCaptain) {
-          return {
-            code: 403,
-            message: '权限不足，只有队长可以查看成员列表'
-          }
-        }
-      } catch (err) {
-        console.error('验证队长权限失败:', err)
-        return {
-          code: 403,
-          message: '权限验证失败'
-        }
-      }
-    }
     
     // 直接查询所有用户
     const members = await db.collection('users')

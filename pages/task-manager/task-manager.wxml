@@ -4,7 +4,24 @@
     <text class="title">打卡任务管理</text>
   </view>
 
-  <scroll-view scroll-y class="content-scroll" type="list" enable-pull-down-refresh="{{true}}" refresher-enabled refresher-triggered="{{refreshing}}" bindrefresherrefresh="onPullDownRefresh">
+  <scroll-view 
+    scroll-y="true" 
+    class="content-scroll" 
+    type="list" 
+    enable-back-to-top="true"
+    refresher-enabled="{{true}}"
+    refresher-triggered="{{refreshing}}"
+    bindrefresherrefresh="onPullDownRefresh"
+    scroll-anchoring="true"
+    enhanced="true"
+    fast-deceleration="true"
+    bounces="true"
+    show-scrollbar="true"
+    bindscroll="onScroll"
+    bindscrolltoupper="onScrollToUpper"
+    bindscrolltolower="onReachBottom"
+    scroll-top="{{scrollTop}}">
+    
     <block wx:if="{{loading && !refreshing}}">
       <view class="loading">
         <text class="loading-text">加载中...</text>

@@ -237,40 +237,23 @@ Page({
       mask: true
     })
 
-    // 先调用云函数将用户加入任务
-    wx.cloud.callFunction({
-      name: 'task',
-      data: {
-        type: 'join',
-        taskId: this.data.taskId,
-        userId: this.data.userInfo._id
-      }
-    }).then(res => {
-      wx.hideLoading()
-      if (res.result && res.result.code === 0) {
-        console.log('成功加入任务');
-        // 更新参与状态
-        this.setData({ hasJoined: true });
-        // 设置全局任务数据变更标记，以便列表页等刷新
-        const app = getApp();
-        app.globalData.taskDataChanged = true;
-        app.globalData.lastTaskId = this.data.taskId;
+    // 不再先调用云函数将用户加入任务
+    // 而是直接跳转到打卡页面，让用户完成打卡后再加入任务
+    // 修改导航方式
+    wx.hideLoading()
+    
+    // 设置全局任务数据变更标记，以便列表页等刷新
+    const app = getApp();
+    app.globalData.taskDataChanged = true;
+    app.globalData.lastTaskId = this.data.taskId;
 
-        // 加入成功后，直接导航到打卡页面
-        wx.navigateTo({
-          url: `/pages/checkin/checkin?id=${this.data.taskId}`,
-          fail: (err) => {
-            console.error('跳转到打卡页失败:', err);
-            wx.showToast({ title: '页面跳转失败', icon: 'none' });
-          }
-        });
-      } else {
-        wx.showToast({ title: res.result?.message || '参与任务失败', icon: 'none' });
+    // 导航到打卡页面，带上join=1参数表示这是首次参与模式
+    wx.navigateTo({
+      url: `/pages/checkin/checkin?id=${this.data.taskId}&join=1`,
+      fail: (err) => {
+        console.error('跳转到打卡页失败:', err);
+        wx.showToast({ title: '页面跳转失败', icon: 'none' });
       }
-    }).catch(err => {
-      wx.hideLoading()
-      console.error('参与任务云函数调用失败:', err);
-      wx.showToast({ title: '参与任务失败，请重试', icon: 'none' });
     });
   },
 

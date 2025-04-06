@@ -25,11 +25,31 @@ Page({
     userInfo: null,
     loading: false,
     isJoining: false, // 添加是否参与任务标记
-    viewingUserName: '' // 记录正在查看的用户名
+    viewingUserName: '', // 记录正在查看的用户名
+    hasSubmitted: false // 添加一个标记来记录是否已完成打卡提交
   },
 
   // 处理导航栏返回按钮点击
   onBackTap: function() {
+    // 如果是参与任务模式且未打卡完成，需要提示用户
+    if (this.data.isJoining && !this.data.hasSubmitted) {
+      wx.showModal({
+        title: '提示',
+        content: '您尚未完成打卡，退出将不会记录为参与任务。确定要退出吗？',
+        confirmText: '确定退出',
+        cancelText: '继续打卡',
+        success: (res) => {
+          if (res.confirm) {
+            wx.navigateBack({
+              delta: 1
+            })
+          }
+        }
+      })
+      return
+    }
+    
+    // 正常退出
     wx.navigateBack({
       delta: 1
     })
@@ -58,7 +78,8 @@ Page({
       recordId,
       isView,
       isJoining,
-      viewingUserName: userName // 记录正在查看的用户名
+      viewingUserName: userName, // 记录正在查看的用户名
+      hasSubmitted: false // 添加一个标记来记录是否已完成打卡提交
     })
     
     // 更新导航栏标题，如果有用户名则显示
@@ -701,7 +722,14 @@ Page({
         return cloud.checkin.submitCheckin(checkinData)
       })
       .then(() => {
-        // 如果是首次参与任务，需要调用joinTask云函数
+        // 标记打卡已提交成功
+        this.setData({ hasSubmitted: true })
+        
+        // 更新系统中的参与状态是在云函数中处理的，不需要在这里调用 joinTask
+        // 如果是首次参与任务，原本是这里需要调用joinTask云函数
+        // 但现在我们已在打卡云函数中处理了参与任务的逻辑
+        // 以下代码可以删除或保留作为注释
+        /*
         if (this.data.isJoining) {
           return wx.cloud.callFunction({
             name: 'task',
@@ -713,15 +741,14 @@ Page({
           })
           .then(res => {
             console.log('参与任务成功:', res)
-            // 不管成功失败都返回，因为打卡已经成功了
             return Promise.resolve()
           })
           .catch(err => {
             console.error('参与任务失败:', err)
-            // 不管成功失败都返回，因为打卡已经成功了
             return Promise.resolve()
           })
         }
+        */
         return Promise.resolve()
       })
       .then(() => {
@@ -782,4 +809,16 @@ Page({
       });
     }
   },
+
+  // 当页面卸载时，如果是参与任务模式但未完成打卡，清理相关状态
+  onUnload: function() {
+    if (this.data.isJoining && !this.data.hasSubmitted) {
+      console.log('用户未完成打卡就退出了')
+      
+      // 可以在这里添加额外的清理逻辑，如果需要的话
+      // 例如标记任务未参与等操作
+      // 这里不需要做特殊处理，因为我们已经修改了云函数逻辑
+      // 只有打卡完成后才会将用户添加到参与者列表
+    }
+  }
 }) 

@@ -6,7 +6,7 @@
       <view class="task-desc">{{task.description}}</view>
       <view class="task-meta">
         <view class="task-type">打卡类型：{{task.checkinType || '未设置'}}</view>
-        <view class="task-deadline">截止时间：{{task.endDateTime || task.deadline}}</view>
+        <view class="task-deadline">{{task.endDateTime || task.deadline}}</view>
       </view>
     </view>
 

@@ -117,11 +117,24 @@ async function submitCheckin(data, userId) {
       data: checkinData
     })
 
-    // 更新任务参与者打卡计数
+    // 更新任务参与者计数和完成计数
     await db.collection('tasks').doc(data.taskId).update({
       data: {
         completedCount: _.inc(1),
+        // 添加用户到参与者列表
+        participants: _.addToSet(userId),
         updateTime: db.serverDate()
+      }
+    })
+    
+    // 记录活动日志 - 标记为实际完成参与
+    await db.collection('activity_logs').add({
+      data: {
+        type: 'task_join_complete',
+        userId: userId,
+        taskId: data.taskId,
+        checkinId: result._id,
+        timestamp: db.serverDate()
       }
     })
 

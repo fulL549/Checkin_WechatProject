@@ -1,4 +1,5 @@
 const app = getApp()
+const cloud = require('../../utils/cloud')
 
 Page({
   data: {
@@ -6,7 +7,11 @@ Page({
       studentId: '',
       password: ''
     },
-    loading: false
+    passwordDisplay: '', // 用于显示星号的字符串
+    passwordFocus: false, // 控制密码输入框的焦点
+    loading: false,
+    showError: false,
+    errorMessage: ''
   },
 
   onLoad: function(options) {
@@ -30,6 +35,14 @@ Page({
         duration: 2000
       })
     }
+
+    // 可选: 从本地存储加载上次使用的学号
+    const lastStudentId = wx.getStorageSync('lastStudentId')
+    if (lastStudentId) {
+      this.setData({
+        'form.studentId': lastStudentId
+      })
+    }
   },
 
   // 输入框变更事件
@@ -40,9 +53,19 @@ Page({
   },
 
   onPasswordInput: function(e) {
+    const password = e.detail.value
+    // 生成对应数量的星号
+    const passwordDisplay = '*'.repeat(password.length)
+    
     this.setData({
-      'form.password': e.detail.value
+      'form.password': password,
+      passwordDisplay: passwordDisplay
     })
+  },
+
+  // 点击密码输入框时设置焦点
+  onPasswordContainerTap: function() {
+    this.setData({ passwordFocus: true })
   },
 
   // 提交表单

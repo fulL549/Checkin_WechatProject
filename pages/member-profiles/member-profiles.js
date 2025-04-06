@@ -5,7 +5,8 @@ Page({
     members: [],
     loading: true,
     refreshing: false,
-    hasMore: true
+    hasMore: true,
+    activeCount: 0 // 添加在训队员数量统计
   },
 
   onLoad: function (options) {
@@ -65,17 +66,22 @@ Page({
             return idA - idB;
           });
 
+          // 统计在训队员数量
+          const activeCount = members.filter(member => member.teamStatus === '在训').length
+
           this.setData({
             members: members,
             loading: false,
-            hasMore: false
+            hasMore: false,
+            activeCount: activeCount // 设置在训队员数量
           })
         } else {
           console.error('获取队员信息失败:', res.result?.message || '未知错误')
           this.setData({
             members: [],
             loading: false,
-            hasMore: false
+            hasMore: false,
+            activeCount: 0 // 重置在训队员数量
           })
           wx.showToast({
             title: res.result?.message || '加载失败',
@@ -86,7 +92,7 @@ Page({
       }).catch(err => {
         wx.hideLoading()
         console.error('调用云函数失败:', err)
-        this.setData({ loading: false, hasMore: false })
+        this.setData({ loading: false, hasMore: false, activeCount: 0 })
         wx.showToast({
           title: '加载失败，请重试',
           icon: 'none'

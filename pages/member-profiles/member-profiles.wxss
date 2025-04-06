@@ -10,6 +10,29 @@ page {
   flex-direction: column;
 }
 
+/* 添加统计信息区域样式 */
+.stats-container {
+  background-color: #fff;
+  margin: 0 0 20rpx 0;
+  padding: 30rpx;
+  border-radius: 12rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.stats-count {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.stats-note {
+  font-size: 24rpx;
+  color: #999;
+}
+
 .content-scroll {
   flex: 1;
   height: calc(100vh - 44px);
@@ -123,10 +146,33 @@ page {
 /* 底部提示样式 */
 .end-state {
   text-align: center;
-  padding: 30rpx 0;
+  padding: 30rpx 0 50rpx 0;
+  margin-top: 20rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .end-text {
   font-size: 26rpx;
   color: #999;
+  position: relative;
+  padding: 0 30rpx;
+}
+
+.end-text::before, .end-text::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 40rpx;
+  height: 2rpx;
+  background-color: #ddd;
+}
+
+.end-text::before {
+  left: -20rpx;
+}
+
+.end-text::after {
+  right: -20rpx;
 }

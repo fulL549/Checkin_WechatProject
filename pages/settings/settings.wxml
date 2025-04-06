@@ -122,14 +122,11 @@
       <view class="form-group password-group">
         <text class="form-label">登录密码</text>
         <view class="password-input-container">
-          <input class="form-input {{showPassword ? '' : 'password-input'}}" 
-                type="{{showPassword ? 'text' : 'password'}}" 
+          <input class="form-input" 
+                type="text" 
                 placeholder="请输入新密码" 
                 value="{{newPassword}}" 
                 bindinput="onPasswordInput"/>
-          <view class="password-icon" bindtap="togglePasswordVisibility">
-            <text class="icon-text">{{showPassword ? '隐藏' : '显示'}}</text>
-          </view>
         </view>
         <view class="password-tips">密码长度至少6位，留空表示不修改</view>
       </view>
@@ -137,14 +134,11 @@
       <view class="form-group password-group" wx:if="{{newPassword}}">
         <text class="form-label">确认密码</text>
         <view class="password-input-container">
-          <input class="form-input {{showConfirmPassword ? '' : 'password-input'}}" 
-                 type="{{showConfirmPassword ? 'text' : 'password'}}" 
+          <input class="form-input" 
+                 type="text" 
                  placeholder="请再次输入新密码" 
                  value="{{confirmPassword}}" 
                  bindinput="onConfirmPasswordInput"/>
-          <view class="password-icon" bindtap="toggleConfirmPasswordVisibility">
-            <text class="icon-text">{{showConfirmPassword ? '隐藏' : '显示'}}</text>
-          </view>
         </view>
       </view>
       

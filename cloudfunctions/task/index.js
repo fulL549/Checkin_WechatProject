@@ -310,18 +310,10 @@ async function joinTask(taskId, userId) {
       }
     }
     
-    // 更新任务参与者列表
-    await db.collection('tasks').doc(taskId).update({
-      data: {
-        participants: _.addToSet(userId),
-        updateTime: db.serverDate()
-      }
-    })
-    
-    // 记录活动日志
+    // 仍然记录用户尝试参与任务的活动日志
     await db.collection('activity_logs').add({
       data: {
-        type: 'task_join',
+        type: 'task_join_attempt', // 修改类型以区分尝试参与和实际参与
         userId: userId,
         taskId: taskId,
         taskTitle: task.data.title,
@@ -474,8 +466,19 @@ async function deleteTask(taskId, userId) {
       }
     }
     
-    // 检查是否有权限删除（只有创建者可以删除）
-    if (task.data.createdBy !== userId) {
+    // 检查用户是否是队长
+    let isCaptain = false;
+    try {
+      const userInfo = await db.collection('users').doc(userId).get();
+      isCaptain = userInfo.data && userInfo.data.isCaptain === true;
+    } catch (err) {
+      console.error('获取用户队长状态失败:', err);
+      // 如果查询失败，默认不是队长
+      isCaptain = false;
+    }
+    
+    // 检查是否有权限删除（创建者或队长可以删除）
+    if (task.data.createdBy !== userId && !isCaptain) {
       return {
         code: 403,
         message: '无权限删除此任务'
