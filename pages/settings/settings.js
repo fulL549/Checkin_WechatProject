@@ -417,6 +417,7 @@ Page({
     // 构建要更新的用户数据对象
     let updateData = {
       _id: this.data.isCaptainEdit ? this.data.targetUserId : this.data.userInfo._id,
+      avatarUrl: this.data.userInfo.avatarUrl,
       paddleSide: this.data.paddleSideOptions[this.data.paddleSideIndex],
       joinDate: this.data.userInfo.joinDate,
       birthday: this.data.userInfo.birthday,

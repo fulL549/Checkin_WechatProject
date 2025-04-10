@@ -208,7 +208,9 @@ Page({
             hasJoined,
             isNewTask,
             // 根据截止日期判断任务是否已过期
-            isExpired: this.isTaskExpired(task)
+            isExpired: this.isTaskExpired(task),
+            // 根据开始时间判断任务是否尚未开始
+            isNotStarted: this.isTaskNotStarted(task)
           }
         })
         
@@ -266,6 +268,23 @@ Page({
     // 向下兼容，检查老格式的deadline
     else if (task.deadline) {
       return new Date(task.deadline) < new Date();
+    }
+    
+    return false;
+  },
+  
+  // 判断任务是否尚未开始的辅助函数
+  isTaskNotStarted: function(task) {
+    if (!task) return false;
+    
+    // 检查startDateTime
+    if (task.startDateTime) {
+      try {
+        return new Date(task.startDateTime.replace(/-/g, '/')) > new Date();
+      } catch (e) {
+        console.error('解析 startDateTime 出错:', e);
+        return false;
+      }
     }
     
     return false;
@@ -369,6 +388,28 @@ Page({
     
     const taskId = e.currentTarget.dataset.id
     if (!taskId) return
+    
+    // 查找当前任务
+    const task = this.data.tasks.find(t => t._id === taskId)
+    if (!task) return
+    
+    // 检查任务是否过期
+    if (task.isExpired) {
+      wx.showToast({
+        title: '任务已截止',
+        icon: 'none'
+      })
+      return
+    }
+    
+    // 检查任务是否尚未开始
+    if (task.isNotStarted) {
+      wx.showToast({
+        title: '任务尚未开始',
+        icon: 'none'
+      })
+      return
+    }
     
     wx.showLoading({
       title: '处理中...'

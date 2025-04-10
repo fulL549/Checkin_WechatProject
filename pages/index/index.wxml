@@ -15,8 +15,8 @@
           <view class="task-info">
             <view class="task-header">
               <text class="task-title">{{item.title}}</text>
-              <view class="task-status {{item.hasJoined ? 'joined' : ''}} {{item.isExpired ? 'expired' : ''}} {{item.isNewTask ? 'new' : ''}}">
-                {{item.isNewTask ? '新' : ''}}{{item.isExpired ? '已截止' : (item.hasJoined ? '已参与' : '未参与')}}
+              <view class="task-status {{item.hasJoined ? 'joined' : ''}} {{item.isExpired ? 'expired' : ''}} {{item.isNotStarted ? 'not-started' : ''}} {{item.isNewTask ? 'new' : ''}}">
+                {{item.isNewTask ? '新' : ''}}{{item.isExpired ? '已截止' : (item.isNotStarted ? '未开始' : (item.hasJoined ? '已参与' : '未参与'))}}
               </view>
             </view>
             <text class="task-desc">{{item.description}}</text>

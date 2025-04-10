@@ -82,6 +82,11 @@ page {
   color: #52c41a;
 }
 
+.task-status.not-started {
+  background-color: #e99a18;
+  color: #fff;
+}
+
 .view-btn {
   background-color: #1890ff;
   color: white;

@@ -67,6 +67,25 @@ async function submitCheckin(data, userId) {
 
     // 获取打卡任务信息，用于判断打卡类型
     const taskInfo = await db.collection('tasks').doc(data.taskId).get()
+    
+    // 检查任务是否已经开始
+    if (taskInfo.data && taskInfo.data.startDateTime) {
+      const now = new Date()
+      try {
+        // 兼容不同日期格式
+        const startTime = new Date(taskInfo.data.startDateTime.replace(/-/g, '/'))
+        if (startTime > now) {
+          return {
+            code: 400,
+            message: '任务尚未开始，不能打卡'
+          }
+        }
+      } catch (e) {
+        console.error('解析任务开始时间出错:', e)
+        // 如果解析出错，退回到不检查开始时间的逻辑
+      }
+    }
+    
     const isTrainingCheckin = taskInfo.data && taskInfo.data.checkinType && 
       (taskInfo.data.checkinType.includes('集训上午') || taskInfo.data.checkinType.includes('集训下午'))
 

@@ -16,8 +16,8 @@
     <view class="task-card">
       <view class="task-header">
         <text class="task-title">{{task.title}}</text>
-        <view class="task-status {{isExpired ? 'expired' : (hasCheckedIn ? 'checked' : (hasJoined ? 'joined' : ''))}}">
-          {{isExpired ? '已截止' : (hasCheckedIn ? '已打卡' : (hasJoined ? '已参与' : '未参与'))}}
+        <view class="task-status {{isExpired ? 'expired' : (isNotStarted ? 'not-started' : (hasCheckedIn ? 'checked' : (hasJoined ? 'joined' : '')))}}">
+          {{isExpired ? '已截止' : (isNotStarted ? '未开始' : (hasCheckedIn ? '已打卡' : (hasJoined ? '已参与' : '未参与')))}}
         </view>
       </view>
 

@@ -101,6 +101,11 @@ page {
   color: #fff;
 }
 
+.task-status.not-started {
+  background-color: #e99a18;
+  color: #fff;
+}
+
 .task-status.new {
   background-color: #ff9500;
   color: #fff;

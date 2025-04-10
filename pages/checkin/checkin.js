@@ -160,6 +160,33 @@ Page({
         // 判断是否为集训打卡
         const isTrainingCheckin = task.checkinType && (task.checkinType.includes('集训上午') || task.checkinType.includes('集训下午'))
         
+        // 检查任务是否已开始
+        let isNotStarted = false;
+        if (task.startDateTime) {
+          try {
+            const startTime = new Date(task.startDateTime.replace(/-/g, '/'));
+            const now = new Date();
+            isNotStarted = startTime > now;
+            console.log(`任务开始时间: ${task.startDateTime}, 是否未开始: ${isNotStarted}`);
+            
+            if (isNotStarted && !this.data.isView) {
+              // 如果任务尚未开始且不是查看模式，显示提示并返回
+              wx.hideLoading();
+              wx.showModal({
+                title: '提示',
+                content: '该任务尚未开始，暂不能打卡',
+                showCancel: false,
+                success: () => {
+                  wx.navigateBack();
+                }
+              });
+              return;
+            }
+          } catch (e) {
+            console.error('解析任务开始时间出错:', e);
+          }
+        }
+        
         this.setData({ 
           task,
           isTrainingCheckin
@@ -626,6 +653,23 @@ Page({
         icon: 'none'
       })
       return
+    }
+    
+    // 检查任务是否已开始
+    if (this.data.task && this.data.task.startDateTime) {
+      try {
+        const startTime = new Date(this.data.task.startDateTime.replace(/-/g, '/'));
+        const now = new Date();
+        if (startTime > now) {
+          wx.showToast({
+            title: '任务尚未开始，不能打卡',
+            icon: 'none'
+          });
+          return;
+        }
+      } catch (e) {
+        console.error('解析任务开始时间出错:', e);
+      }
     }
     
     // 表单验证 - 根据打卡类型进行不同验证

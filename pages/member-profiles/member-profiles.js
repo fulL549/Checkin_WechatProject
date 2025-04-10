@@ -6,11 +6,37 @@ Page({
     loading: true,
     refreshing: false,
     hasMore: true,
-    activeCount: 0 // 添加在训队员数量统计
+    activeCount: 0, // 添加在训队员数量统计
+    scrollHeight: 0 // 添加滚动区域高度
   },
 
   onLoad: function (options) {
+    // 计算滚动区域高度
+    this.calculateScrollHeight()
     this.loadMembers()
+  },
+  
+  // 计算滚动区域高度
+  calculateScrollHeight: function() {
+    wx.getSystemInfo({
+      success: (res) => {
+        // 计算滚动区域高度：屏幕高度 - 导航栏高度 - 底部安全区域高度
+        const scrollHeight = res.windowHeight - (res.platform === 'ios' ? 44 : 48) - (res.safeArea ? (res.screenHeight - res.safeArea.bottom) : 0)
+        this.setData({
+          scrollHeight: scrollHeight
+        })
+      }
+    })
+  },
+  
+  onReady: function() {
+    // 页面渲染完成后，再次计算滚动区域高度
+    this.calculateScrollHeight()
+  },
+  
+  onResize: function() {
+    // 页面尺寸变化时，重新计算滚动区域高度
+    this.calculateScrollHeight()
   },
 
   onRefresh: function () {

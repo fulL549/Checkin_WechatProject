@@ -10,8 +10,9 @@ Page({
     hasJoined: false,
     hasCheckedIn: false,
     isExpired: false,
+    isNotStarted: false,
     checkinRecord: null,
-    debugInfo: ''
+    debugInfo: '加载中...'
   },
 
   // 处理导航栏返回按钮点击
@@ -139,7 +140,20 @@ Page({
         
         // 检查任务是否已过期 (使用 endDateTime 或 deadline)
         let isExpired = false;
+        let isNotStarted = false;
         const now = new Date();
+        
+        // 检查任务是否尚未开始
+        if (task.startDateTime) {
+          try {
+            isNotStarted = new Date(task.startDateTime.replace(/-/g, '/')) > now; // 兼容iOS日期格式
+            console.log(`任务开始时间: ${task.startDateTime}, 是否未开始: ${isNotStarted}`);
+          } catch (e) {
+            console.error('解析 startDateTime 出错:', e);
+          }
+        }
+        
+        // 检查任务是否已过期
         if (task.endDateTime) {
           try {
             isExpired = new Date(task.endDateTime.replace(/-/g, '/')) < now; // 兼容ios日期格式
@@ -169,6 +183,7 @@ Page({
           isCreator,
           hasJoined,
           isExpired,
+          isNotStarted,
           debugInfo: '数据加载成功'
         })
 
@@ -228,6 +243,10 @@ Page({
     }
     if (this.data.isExpired) {
       wx.showToast({ title: '任务已截止', icon: 'none' })
+      return
+    }
+    if (this.data.isNotStarted) {
+      wx.showToast({ title: '任务尚未开始', icon: 'none' })
       return
     }
     

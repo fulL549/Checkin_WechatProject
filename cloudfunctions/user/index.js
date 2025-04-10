@@ -7,71 +7,111 @@ cloud.init({
 const db = cloud.database()
 const _ = db.command
 
-// 获取下一个可用的ID
+// 获取下一个可用的用户ID
 async function getNextId() {
   try {
-    // 查询用户集合中的所有文档并按ID排序
-    const result = await db.collection('users')
-      .orderBy('_id', 'desc')
-      .limit(1)
-      .get();
+    console.log('开始获取下一个用户ID');
     
-    // 如果集合中没有文档，返回1作为第一个ID
-    if (result.data.length === 0) {
-      return 1;
+    // 查询所有用户记录
+    const usersRes = await db.collection('users').get();
+    const users = usersRes.data || [];
+    
+    // 没有用户时返回初始ID "1"
+    if (users.length === 0) {
+      console.log('用户集合为空，返回初始ID: "1"');
+      return "1";
     }
     
-    // 尝试将最大的ID转换为数字并加1
-    const lastId = result.data[0]._id;
-    // 如果ID是数字字符串，解析为数字并加1
-    if (!isNaN(lastId)) {
-      return parseInt(lastId) + 1;
-    } else {
-      // 如果之前的ID不是数字格式，从1开始
-      return 1;
-    }
+    // 1. 将所有用户ID转为整数类型
+    let maxId = 0;
+    users.forEach(user => {
+      try {
+        const userId = parseInt(user._id, 10);
+        // 只处理有效的数字ID
+        if (!isNaN(userId) && userId > maxId) {
+          maxId = userId;
+        }
+      } catch (err) {
+        console.warn('无法解析用户ID:', user._id, err);
+      }
+    });
+    
+    // 2. 找到最大值
+    console.log('当前最大用户ID:', maxId);
+    
+    // 3. 最大值+1并转为字符串
+    const nextId = maxId + 1;
+    const nextIdStr = String(nextId);
+    
+    console.log('生成的下一个用户ID:', nextIdStr);
+    return nextIdStr;
+    
   } catch (err) {
-    console.error('获取下一个ID失败:', err);
-    // 出错时默认返回一个较大的数字，避免ID冲突
-    return 10000;
+    console.error('获取下一个用户ID时出错:', err);
+    // 出错时返回一个较大的ID以避免冲突
+    return String(Math.floor(100000 + Math.random() * 900000));
   }
 }
 
 // 云函数入口函数
 exports.main = async (event, context) => {
-  // 不再从context中获取openid
-  console.log('用户云函数调用:', event.type, event)
+  // 添加请求标识，便于日志跟踪
+  const requestId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+  console.log(`[${requestId}] 用户云函数调用:`, event.type, event);
   
   try {
+    let result;
     switch (event.type) {
       case 'create':
-        return await createUser(event.data)
+        result = await createUser(event.data);
+        break;
       case 'get':
-        return await getUser(event.userId)
+        result = await getUser(event.userId);
+        break;
       case 'register':
-        return await registerUser(event)
+        console.log(`[${requestId}] 开始用户注册流程`);
+        result = await registerUser(event);
+        console.log(`[${requestId}] 用户注册完成:`, result.code === 0 ? '成功' : '失败', result.message);
+        break;
       case 'login':
-        return await loginUser(event)
+        result = await loginUser(event);
+        break;
       case 'update':
-        return await updateUserInfo(event)
+        result = await updateUserInfo(event);
+        break;
       case 'verifyCaptain':
-        return await verifyCaptain(event)
+        result = await verifyCaptain(event);
+        break;
       case 'getUserById':
-        return await getUserById(event)
+        result = await getUserById(event);
+        break;
       case 'checkCaptainStatus':
-        return await checkCaptainStatus(event)
+        result = await checkCaptainStatus(event);
+        break;
       default:
-        return {
+        result = {
           code: 404,
           message: '未知操作类型'
-        }
+        };
     }
+    return result;
   } catch (e) {
-    console.error('云函数执行错误:', e)
+    console.error(`[${requestId}] 云函数执行错误:`, e);
+    // 记录更详细的错误信息
+    const errorDetail = {
+      message: e.message,
+      stack: e.stack,
+      name: e.name,
+      code: e.code,
+      event: event
+    };
+    console.error(`[${requestId}] 错误详情:`, JSON.stringify(errorDetail));
+    
     return {
       code: 500,
-      message: '云函数执行出错: ' + e.message
-    }
+      message: '云函数执行出错: ' + e.message,
+      requestId
+    };
   }
 }
 
@@ -175,11 +215,16 @@ async function createUser(userData) {
 
     // 如果用户不存在，创建新用户
     if (!existingUser.data) {
-      // 生成新的ID
-      const nextId = await getNextId();
-      user._id = nextId.toString();
-      user.userId = nextId;
+      // 获取下一个可用ID - 已是字符串
+      const nextIdStr = await getNextId();
+      console.log('创建新用户，分配ID:', nextIdStr);
       
+      // 设置ID字段
+      user._id = nextIdStr;
+      user.userId = parseInt(nextIdStr, 10); // 转为数字类型
+      user.createTime = db.serverDate();
+      
+      // 创建用户
       await db.collection('users').add({
         data: user
       })
@@ -475,37 +520,51 @@ async function registerUser(event) {
       }
     }
     
-    // 获取下一个可用的ID
-    const nextId = await getNextId();
+    // 获取下一个可用ID - 已经是字符串类型
+    console.log('正在获取下一个用户ID');
+    const nextIdStr = await getNextId();
+    console.log('获取到的下一个用户ID:', nextIdStr);
     
-    // 创建新用户
+    // 将ID转换为数字格式用于userId字段
+    const nextIdNum = parseInt(nextIdStr, 10);
+    
+    // 创建新用户对象
     const userData = {
-      _id: nextId.toString(), // ID使用字符串格式
-      nickName: nickName || '用户' + studentId, // 姓名
+      _id: nextIdStr,
+      nickName: nickName || '用户' + studentId,
       studentId,
-      password, // 实际应用中应对密码进行加密
+      password,
       avatarUrl: '',
       gender: gender || 'male',
-      college: college || '',  // 学院全称
-      grade: grade || '',      // 年级全称
+      college: college || '',
+      grade: grade || '',
       teamStatus: teamStatus || '在训',
-      paddleSide: '', // 默认值
-      competitions: [], // 默认值
-      birthday: '',    // 默认值
-      joinDate: '',    // 默认值
-      weight: '',      // 默认值
-      height: '',      // 默认值
-      testLevel: '',   // 默认值
-      phone: '',       // 默认值
+      paddleSide: '',
+      competitions: [],
+      birthday: '',
+      joinDate: '',
+      weight: '',
+      height: '',
+      testLevel: '',
+      phone: '',
       isCaptain: false,
-      userId: nextId,  // 添加数字格式的ID
+      userId: nextIdNum, // 数值类型的用户ID
       createTime: db.serverDate(),
       updateTime: db.serverDate()
     }
     
+    console.log('准备创建用户:', JSON.stringify({
+      _id: userData._id,
+      studentId: userData.studentId,
+      userId: userData.userId
+    }));
+    
+    // 创建用户
     const result = await db.collection('users').add({
       data: userData
-    })
+    });
+    
+    console.log('用户创建成功:', result);
     
     return {
       code: 0,
@@ -516,10 +575,11 @@ async function registerUser(event) {
       message: '注册成功'
     }
   } catch (err) {
-    console.error('用户注册失败：', err)
+    console.error('用户注册失败:', err);
+    const errorMsg = err.message || err.errMsg || '未知错误';
     return {
       code: 500,
-      message: '注册失败：' + err.message
+      message: '注册失败：' + errorMsg
     }
   }
 }

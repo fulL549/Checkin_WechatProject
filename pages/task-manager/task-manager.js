@@ -6,12 +6,14 @@ Page({
     taskList: [],
     userInfo: null,
     refreshing: false,
-    scrollTop: 0 // 添加滚动位置记录
+    scrollHeight: 0 // 滚动区域高度
   },
   
   onLoad: function() {
     this.loadUserInfo()
     this.loadTaskList()
+    // 计算滚动区域高度
+    this.calculateScrollHeight()
   },
   
   onShow: function() {
@@ -55,20 +57,6 @@ Page({
     wx.navigateBack({
       delta: 1
     })
-  },
-  
-  // 监听滚动事件
-  onScroll: function(e) {
-    // 记录滚动位置，以便需要时恢复
-    this.setData({
-      scrollTop: e.detail.scrollTop
-    });
-  },
-  
-  // 处理滚动到顶部
-  onScrollToUpper: function() {
-    console.log('滚动到顶部');
-    // 可以在这里添加刷新逻辑或其他顶部触发的行为
   },
   
   // 处理滚动到底部
@@ -234,5 +222,29 @@ Page({
       .catch(() => {
         this.setData({ refreshing: false });
       });
+  },
+  
+  // 计算滚动区域高度
+  calculateScrollHeight: function() {
+    wx.getSystemInfo({
+      success: (res) => {
+        // 计算滚动区域高度：屏幕高度 - 导航栏高度 - 底部安全区域高度
+        const scrollHeight = res.windowHeight - (res.platform === 'ios' ? 44 : 48) - (res.safeArea ? (res.screenHeight - res.safeArea.bottom) : 0)
+        this.setData({
+          scrollHeight: scrollHeight
+        })
+        console.log('滚动区域高度计算: ', scrollHeight)
+      }
+    })
+  },
+  
+  onReady: function() {
+    // 页面渲染完成后再次计算
+    this.calculateScrollHeight()
+  },
+  
+  onResize: function() {
+    // 在页面大小变化时重新计算
+    this.calculateScrollHeight()
   }
 }) 
